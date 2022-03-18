@@ -4,6 +4,12 @@
 
 This is the Go client for [CodeGame](https://code-game-project.github.io/).
 
+## Installation
+
+```sh
+go get github.com/code-game-project/go-client/cg
+```
+
 ## Usage
 
 ```go
@@ -24,9 +30,9 @@ func main() {
 	}
 
 	// Register error event listener.
-	con.On(cg.ErrorEvent, func(origin string, target cg.EventTarget, event cg.Event) {
+	con.On(cg.EventError, func(origin string, target cg.EventTarget, event cg.Event) {
 		// Decode event data into the data struct.
-		var data cg.ErrorEventData
+		var data cg.EventErrorData
 		event.UnmarshalData(&data)
 
 		// Log error.
