@@ -65,3 +65,10 @@ const EventError EventName = "error"
 type EventErrorData struct {
 	Reason string `json:"reason"`
 }
+
+// Returns true if eventName is a standard event.
+func IsStandardEvent(eventName EventName) bool {
+	return eventName == EventCreateGame || eventName == EventCreatedGame || eventName == EventDisconnected ||
+		eventName == EventError || eventName == EventGameInfo || eventName == EventJoinGame || eventName == EventJoinedGame ||
+		eventName == EventLeaveGame || eventName == EventLeftGame || eventName == EventReconnected
+}

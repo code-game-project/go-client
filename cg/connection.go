@@ -157,6 +157,19 @@ func (c *Connection) Emit(eventName EventName, eventData interface{}) error {
 	return nil
 }
 
+// Leave sends a leave_game event to the server and clears all non-standard events.
+func (c *Connection) Leave() error {
+	c.gameId = ""
+
+	for key := range c.eventListeners {
+		if !IsStandardEvent(key) {
+			delete(c.eventListeners, key)
+		}
+	}
+
+	return c.Emit(EventLeaveGame, EventLeaveGameData{})
+}
+
 // Close closes the underlying websocket connection.
 func (c *Connection) Close() error {
 	c.wsConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(5*time.Second))
