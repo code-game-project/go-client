@@ -3,6 +3,7 @@ package cg
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -37,7 +38,7 @@ func (c *Connection) Listen() error {
 	for {
 		msgType, msg, err := c.wsConn.ReadMessage()
 		if err != nil {
-			if !websocket.IsCloseError(err) {
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
 				return err
 			}
 			break
@@ -56,6 +57,10 @@ func (c *Connection) Listen() error {
 		err = json.Unmarshal(msg, &wrapper)
 		if err != nil {
 			c.error(fmt.Sprintf("failed to decode event: %s", err))
+			continue
+		}
+		if wrapper.Event.Name == "" {
+			c.error(fmt.Sprintf("failed to decode event: empty event name field"))
 			continue
 		}
 
@@ -90,6 +95,12 @@ func (c *Connection) Emit(eventName EventName, eventData interface{}) error {
 
 	c.wsConn.WriteMessage(websocket.TextMessage, jsonData)
 	return nil
+}
+
+// Close closes the underlying websocket connection.
+func (c *Connection) Close() error {
+	c.wsConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(5*time.Second))
+	return c.wsConn.Close()
 }
 
 func (c *Connection) triggerEventListeners(origin string, target EventTarget, event Event) {
