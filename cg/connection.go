@@ -20,6 +20,7 @@ type Connection struct {
 	username       string
 	wsConn         *websocket.Conn
 	eventListeners map[EventName][]OnEventCallback
+	usernameCache  map[string]string
 }
 
 // Connect opens a new websocket connection with the CodeGame server listening at wsURL and returns a new Connection struct.
@@ -27,6 +28,7 @@ func Connect(wsURL, username string) (*Connection, error) {
 	connection := &Connection{
 		username:       username,
 		eventListeners: make(map[EventName][]OnEventCallback),
+		usernameCache:  make(map[string]string),
 	}
 
 	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
@@ -34,6 +36,24 @@ func Connect(wsURL, username string) (*Connection, error) {
 		return nil, fmt.Errorf("failed to create websocket connection: %w", err)
 	}
 	connection.wsConn = wsConn
+
+	connection.On(EventJoinedGame, func(origin string, target EventTarget, event Event) {
+		var data EventJoinedGameData
+		event.UnmarshalData(&data)
+		connection.cacheUser(origin, data.Username)
+	})
+	connection.On(EventLeftGame, func(origin string, target EventTarget, event Event) {
+		var data EventLeftGameData
+		event.UnmarshalData(&data)
+		connection.uncacheUser(origin)
+	})
+	connection.On(EventGameInfo, func(origin string, target EventTarget, event Event) {
+		var data EventGameInfoData
+		event.UnmarshalData(&data)
+		for id, name := range data.Players {
+			connection.cacheUser(id, name)
+		}
+	})
 
 	return connection, nil
 }
@@ -167,6 +187,10 @@ func (c *Connection) Leave() error {
 		}
 	}
 
+	for key := range c.usernameCache {
+		delete(c.usernameCache, key)
+	}
+
 	return c.Emit(EventLeaveGame, EventLeaveGameData{})
 }
 
@@ -176,12 +200,25 @@ func (c *Connection) Close() error {
 	return c.wsConn.Close()
 }
 
+// Returns the username associated to socketId.
+func (c *Connection) GetUser(socketId string) string {
+	return c.usernameCache[socketId]
+}
+
 func (c *Connection) triggerEventListeners(origin string, target EventTarget, event Event) {
 	if c.eventListeners[event.Name] != nil {
 		for _, cb := range c.eventListeners[event.Name] {
 			cb(origin, target, event)
 		}
 	}
+}
+
+func (c *Connection) cacheUser(socketId, username string) {
+	c.usernameCache[socketId] = username
+}
+
+func (c *Connection) uncacheUser(socketId string) {
+	delete(c.usernameCache, socketId)
 }
 
 func (c *Connection) error(reason string) {
