@@ -20,6 +20,12 @@ const (
 	EventOriginSelf   = "self"
 )
 
+type eventWrapper struct {
+	Target EventTarget `json:"target"`
+	Origin string      `json:"origin"`
+	Event  Event       `json:"event"`
+}
+
 type OnEventCallback func(origin string, target EventTarget, event Event)
 
 type Event struct {

@@ -2,10 +2,16 @@ package cg
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+var (
+	ErrInvalidMessageType = errors.New("invalid message type")
+	ErrDecodeFailed       = errors.New("failed to decode event")
 )
 
 // Connection represents the connection with a CodeGame server and handles events.
@@ -32,41 +38,95 @@ func Connect(wsURL, username string) (*Connection, error) {
 	return connection, nil
 }
 
+// Create sends a create_game event to the server and returns the gameId on success.
+func (c *Connection) Create() (string, error) {
+	c.Emit(CreateGameEvent, CreateGameEventData{
+		Username: c.username,
+	})
+
+	for {
+		wrapper, err := c.receiveEvent()
+		if err != nil {
+			if err == ErrInvalidMessageType || err == ErrDecodeFailed {
+				continue
+			} else {
+				return "", err
+			}
+		}
+		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
+
+		if wrapper.Event.Name == CreatedGameEvent {
+			var data CreatedGameEventData
+			wrapper.Event.UnmarshalData(&data)
+			return data.GameId, nil
+		}
+	}
+}
+
+// Join sends a create_game event to the server and returns once it receives a joined_game event
+func (c *Connection) Join(gameId string) error {
+	c.Emit(JoinGameEvent, JoinGameEventData{
+		GameId:   gameId,
+		Username: c.username,
+	})
+
+	for {
+		wrapper, err := c.receiveEvent()
+		if err != nil {
+			if err == ErrInvalidMessageType || err == ErrDecodeFailed {
+				continue
+			} else {
+				return err
+			}
+		}
+		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
+
+		if wrapper.Event.Name == JoinedGameEvent {
+			return nil
+		}
+	}
+}
+
 // Listen starts listening for events and triggers registered event listeners.
 // Returns on close or error.
 func (c *Connection) Listen() error {
 	for {
-		msgType, msg, err := c.wsConn.ReadMessage()
+		wrapper, err := c.receiveEvent()
 		if err != nil {
-			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
+				return nil
+			} else if err == ErrInvalidMessageType || err == ErrDecodeFailed {
+				continue
+			} else {
 				return err
 			}
-			break
 		}
-		if msgType != websocket.TextMessage {
-			c.error(fmt.Sprintf("received invalid message type"))
-			continue
-		}
-
-		type eventWrapper struct {
-			Target EventTarget `json:"target"`
-			Origin string      `json:"origin"`
-			Event  Event       `json:"event"`
-		}
-		var wrapper eventWrapper
-		err = json.Unmarshal(msg, &wrapper)
-		if err != nil {
-			c.error(fmt.Sprintf("failed to decode event: %s", err))
-			continue
-		}
-		if wrapper.Event.Name == "" {
-			c.error(fmt.Sprintf("failed to decode event: empty event name field"))
-			continue
-		}
-
 		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
 	}
-	return nil
+}
+
+func (c *Connection) receiveEvent() (eventWrapper, error) {
+	msgType, msg, err := c.wsConn.ReadMessage()
+	if err != nil {
+		return eventWrapper{}, err
+	}
+	if msgType != websocket.TextMessage {
+		c.error(fmt.Sprintf("received invalid message type"))
+		return eventWrapper{}, ErrInvalidMessageType
+	}
+
+	var wrapper eventWrapper
+	err = json.Unmarshal(msg, &wrapper)
+	if err != nil {
+		c.error(fmt.Sprintf("failed to decode event: %s", err))
+		return eventWrapper{}, ErrDecodeFailed
+	}
+	if wrapper.Event.Name == "" {
+		c.error(fmt.Sprintf("failed to decode event: empty event name field"))
+		return eventWrapper{}, ErrDecodeFailed
+	}
+
+	return wrapper, nil
 }
 
 // On registers a callback that is triggered once event is received.

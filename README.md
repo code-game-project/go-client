@@ -39,6 +39,18 @@ func main() {
 		}
 	})
 
+	// Create a new game and store its id in 'gameId'.
+	gameId, err := con.Create()
+	if err != nil {
+		log.Fatalf("failed to create game: %s", err)
+	}
+
+	// Join the previously created game.
+	err = con.Join(gameId)
+	if err != nil {
+		log.Fatalf("failed to join game: %s", err)
+	}
+
 	// Start listening for events.
 	con.Listen()
 }
