@@ -40,7 +40,7 @@ func Connect(wsURL, username string) (*Connection, error) {
 
 // Create sends a create_game event to the server and returns the gameId on success.
 func (c *Connection) Create() (string, error) {
-	c.Emit(CreateGameEvent, CreateGameEventData{
+	c.Emit(EventCreateGame, EventCreateGameData{
 		Username: c.username,
 	})
 
@@ -55,8 +55,8 @@ func (c *Connection) Create() (string, error) {
 		}
 		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
 
-		if wrapper.Event.Name == CreatedGameEvent {
-			var data CreatedGameEventData
+		if wrapper.Event.Name == EventCreatedGame {
+			var data EventCreatedGameData
 			wrapper.Event.UnmarshalData(&data)
 			return data.GameId, nil
 		}
@@ -65,7 +65,7 @@ func (c *Connection) Create() (string, error) {
 
 // Join sends a create_game event to the server and returns once it receives a joined_game event
 func (c *Connection) Join(gameId string) error {
-	c.Emit(JoinGameEvent, JoinGameEventData{
+	c.Emit(EventJoinGame, EventJoinGameData{
 		GameId:   gameId,
 		Username: c.username,
 	})
@@ -81,7 +81,7 @@ func (c *Connection) Join(gameId string) error {
 		}
 		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
 
-		if wrapper.Event.Name == JoinedGameEvent {
+		if wrapper.Event.Name == EventJoinedGame {
 			return nil
 		}
 	}
@@ -173,9 +173,9 @@ func (c *Connection) triggerEventListeners(origin string, target EventTarget, ev
 
 func (c *Connection) error(reason string) {
 	errorEvent := Event{
-		Name: ErrorEvent,
+		Name: EventError,
 	}
-	err := errorEvent.marshalData(ErrorEventData{
+	err := errorEvent.marshalData(EventErrorData{
 		Reason: reason,
 	})
 	if err == nil {
