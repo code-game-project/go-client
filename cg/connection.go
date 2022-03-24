@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -19,7 +20,7 @@ type Connection struct {
 	gameId         string
 	username       string
 	wsConn         *websocket.Conn
-	eventListeners map[EventName][]OnEventCallback
+	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
 }
 
@@ -27,7 +28,7 @@ type Connection struct {
 func Connect(wsURL, username string) (*Connection, error) {
 	connection := &Connection{
 		username:       username,
-		eventListeners: make(map[EventName][]OnEventCallback),
+		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:  make(map[string]string),
 	}
 
@@ -149,13 +150,40 @@ func (c *Connection) receiveEvent() (eventWrapper, error) {
 	return wrapper, nil
 }
 
-// On registers a callback that is triggered once event is received.
-func (c *Connection) On(event EventName, callback OnEventCallback) {
+// On registers a callback that is triggered when event is received.
+func (c *Connection) On(event EventName, callback OnEventCallback) CallbackId {
 	if c.eventListeners[event] == nil {
-		c.eventListeners[event] = make([]OnEventCallback, 0, 1)
+		c.eventListeners[event] = make(map[CallbackId]OnEventCallback)
 	}
 
-	c.eventListeners[event] = append(c.eventListeners[event], callback)
+	id := CallbackId(uuid.New())
+
+	c.eventListeners[event][id] = callback
+
+	return id
+}
+
+// OnOnce registers a callback that is triggered only the first time event is received.
+func (c *Connection) OnOnce(event EventName, callback OnEventCallback) CallbackId {
+	if c.eventListeners[event] == nil {
+		c.eventListeners[event] = make(map[CallbackId]OnEventCallback)
+	}
+
+	id := CallbackId(uuid.New())
+
+	c.eventListeners[event][id] = func(origin string, target EventTarget, event Event) {
+		callback(origin, target, event)
+		c.RemoveCallback(id)
+	}
+
+	return id
+}
+
+// RemoveCallback deletes the callback with the specified id.
+func (c *Connection) RemoveCallback(id CallbackId) {
+	for _, callbacks := range c.eventListeners {
+		delete(callbacks, id)
+	}
 }
 
 // Emit sends a new event to the server.
@@ -200,7 +228,7 @@ func (c *Connection) Close() error {
 	return c.wsConn.Close()
 }
 
-// Returns the username associated to socketId.
+// Returns the username associated with socketId.
 func (c *Connection) GetUser(socketId string) string {
 	return c.usernameCache[socketId]
 }

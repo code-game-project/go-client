@@ -1,6 +1,10 @@
 package cg
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 type EventTargetType string
 
@@ -26,6 +30,7 @@ type eventWrapper struct {
 	Event  Event       `json:"event"`
 }
 
+type CallbackId uuid.UUID
 type OnEventCallback func(origin string, target EventTarget, event Event)
 
 type Event struct {
