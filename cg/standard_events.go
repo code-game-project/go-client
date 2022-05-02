@@ -5,9 +5,7 @@ type EventName string
 // The create_game event is used to create a new game.
 const EventCreateGame EventName = "create_game"
 
-type EventCreateGameData struct {
-	Username string `json:"username"`
-}
+type EventCreateGameData struct{}
 
 // The created_game event is the server’s response to the create_game event. It is only sent to the client that created the game.
 const EventCreatedGame EventName = "created_game"

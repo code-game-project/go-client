@@ -25,9 +25,8 @@ type Connection struct {
 }
 
 // Connect opens a new websocket connection with the CodeGame server listening at wsURL and returns a new Connection struct.
-func Connect(wsURL, username string) (*Connection, error) {
+func Connect(wsURL string) (*Connection, error) {
 	connection := &Connection{
-		username:       username,
 		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:  make(map[string]string),
 	}
@@ -61,9 +60,7 @@ func Connect(wsURL, username string) (*Connection, error) {
 
 // Create sends a create_game event to the server and returns the gameId on success.
 func (c *Connection) Create() (string, error) {
-	c.Emit(EventCreateGame, EventCreateGameData{
-		Username: c.username,
-	})
+	c.Emit(EventCreateGame, EventCreateGameData{})
 
 	for {
 		wrapper, err := c.receiveEvent()
@@ -85,10 +82,10 @@ func (c *Connection) Create() (string, error) {
 }
 
 // Join sends a create_game event to the server and returns once it receives a joined_game event
-func (c *Connection) Join(gameId string) error {
+func (c *Connection) Join(gameId, username string) error {
 	c.Emit(EventJoinGame, EventJoinGameData{
 		GameId:   gameId,
-		Username: c.username,
+		Username: username,
 	})
 
 	for {
@@ -103,6 +100,8 @@ func (c *Connection) Join(gameId string) error {
 		c.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
 
 		if wrapper.Event.Name == EventJoinedGame {
+			c.gameId = gameId
+			c.username = username
 			return nil
 		}
 	}

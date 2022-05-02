@@ -24,7 +24,7 @@ import (
 
 func main() {
 	// Open connection with CodeGame server.
-	con, err := cg.Connect("ws://127.0.0.1:8081/ws", "username")
+	con, err := cg.Connect("ws://127.0.0.1:8081/ws")
 	if err != nil {
 		log.Fatalf("failed to connect to server: %s", err)
 	}
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	// Join the previously created game.
-	err = con.Join(gameId)
+	err = con.Join(gameId, "username")
 	if err != nil {
 		log.Fatalf("failed to join game: %s", err)
 	}
