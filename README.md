@@ -1,5 +1,5 @@
 # Go-Client
-![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.0.5-orange)
+![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.0.7-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://code-game-project.github.io/).
@@ -16,6 +16,7 @@ go get github.com/code-game-project/go-client/cg
 package main
 
 import (
+	"fmt"
 	"log"
 
 	// Import CodeGame client library.
@@ -30,21 +31,21 @@ func main() {
 	}
 
 	// Register error event listener.
-	socket.On(cg.EventError, func(origin string, target cg.EventTarget, event cg.Event) {
+	socket.On(cg.EventError, func(origin string, event cg.Event) {
 		var data cg.EventErrorData
 		event.UnmarshalData(&data)
 		log.Printf("server error: %s", data.Reason)
 	})
 
 	// Register a game_info event listener.
-	socket.On(cg.EventGameInfo, func(origin string, target cg.EventTarget, event cg.Event) {
+	socket.On(cg.EventGameInfo, func(origin string, event cg.Event) {
 		var data cg.EventGameInfoData
 		event.UnmarshalData(&data)
-		fmt.Println(origin, target, event.Name, data)
+		fmt.Println(origin, event.Name, data)
 	})
 
 	// Register a game_info event listener, which is only triggered once.
-	socket.OnOnce(cg.EventGameInfo, func(origin string, target cg.EventTarget, event cg.Event) {
+	socket.OnOnce(cg.EventGameInfo, func(origin string, event cg.Event) {
 		fmt.Println("GameInfoOnce")
 	})
 
@@ -56,8 +57,8 @@ func main() {
 	}
 
 	if err != nil {
-		// Create a new game and store its id in 'gameId'.
-		gameId, err := socket.Create()
+		// Create a new private game and store its id in 'gameId'.
+		gameId, err := socket.Create(false)
 		if err != nil {
 			log.Fatalf("failed to create game: %s", err)
 		}

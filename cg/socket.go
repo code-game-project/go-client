@@ -40,17 +40,17 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 	}
 	socket.wsConn = wsConn
 
-	socket.On(EventJoinedGame, func(origin string, target EventTarget, event Event) {
+	socket.On(EventJoinedGame, func(origin string, event Event) {
 		var data EventJoinedGameData
 		event.UnmarshalData(&data)
 		socket.cacheUser(origin, data.Username)
 	})
-	socket.On(EventLeftGame, func(origin string, target EventTarget, event Event) {
+	socket.On(EventLeftGame, func(origin string, event Event) {
 		var data EventLeftGameData
 		event.UnmarshalData(&data)
 		socket.uncacheUser(origin)
 	})
-	socket.On(EventGameInfo, func(origin string, target EventTarget, event Event) {
+	socket.On(EventGameInfo, func(origin string, event Event) {
 		var data EventGameInfoData
 		event.UnmarshalData(&data)
 		for id, name := range data.Players {
@@ -62,8 +62,10 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 }
 
 // Create sends a create_game event to the server and returns the gameId on success.
-func (s *Socket) Create() (string, error) {
-	res, err := s.sendEventAndWaitForResponse(EventCreateGame, EventCreateGameData{}, EventCreatedGame)
+func (s *Socket) Create(public bool) (string, error) {
+	res, err := s.sendEventAndWaitForResponse(EventCreateGame, EventCreateGameData{
+		Public: public,
+	}, EventCreatedGame)
 	if err != nil {
 		return "", err
 	}
@@ -125,7 +127,7 @@ func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, exp
 		if err != nil {
 			return []eventWrapper{}, err
 		}
-		s.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
+		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
 
 		for i, expected := range expectedReponse {
 			if wrapper.Event.Name == expected {
@@ -165,7 +167,7 @@ func (s *Socket) Listen() error {
 				return err
 			}
 		}
-		s.triggerEventListeners(wrapper.Origin, wrapper.Target, wrapper.Event)
+		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
 	}
 }
 
@@ -211,8 +213,8 @@ func (s *Socket) OnOnce(event EventName, callback OnEventCallback) CallbackId {
 
 	id := CallbackId(uuid.New())
 
-	s.eventListeners[event][id] = func(origin string, target EventTarget, event Event) {
-		callback(origin, target, event)
+	s.eventListeners[event][id] = func(origin string, event Event) {
+		callback(origin, event)
 		s.RemoveCallback(id)
 	}
 
@@ -273,10 +275,10 @@ func (s *Socket) GetUser(playerId string) string {
 	return s.usernameCache[playerId]
 }
 
-func (s *Socket) triggerEventListeners(origin string, target EventTarget, event Event) {
+func (s *Socket) triggerEventListeners(origin string, event Event) {
 	if s.eventListeners[event.Name] != nil {
 		for _, cb := range s.eventListeners[event.Name] {
-			cb(origin, target, event)
+			cb(origin, event)
 		}
 	}
 }

@@ -6,32 +6,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type EventTargetType string
-
-const (
-	EventTargetTypeGame   EventTargetType = "game"
-	EventTargetTypeSocket EventTargetType = "socket"
-	EventTargetTypeSelf   EventTargetType = "self"
-)
-
-type EventTarget struct {
-	Type EventTargetType `json:"type"`
-	ID   string          `json:"id"`
-}
-
-const (
-	EventOriginServer = "server"
-	EventOriginSelf   = "self"
-)
-
 type eventWrapper struct {
-	Target EventTarget `json:"target"`
-	Origin string      `json:"origin"`
-	Event  Event       `json:"event"`
+	Origin string `json:"origin"`
+	Event  Event  `json:"event"`
 }
 
 type CallbackId uuid.UUID
-type OnEventCallback func(origin string, target EventTarget, event Event)
+type OnEventCallback func(origin string, event Event)
 
 type Event struct {
 	Name EventName       `json:"name"`
