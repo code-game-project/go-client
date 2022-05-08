@@ -9,28 +9,28 @@ import (
 	"github.com/adrg/xdg"
 )
 
-type State struct {
+type Session struct {
 	Name         string `json:"-"`
 	GameId       string `json:"game_id"`
 	PlayerId     string `json:"player_id"`
 	PlayerSecret string `json:"player_secret"`
 }
 
-func RestoreState(name string) (State, error) {
-	data, err := os.ReadFile(path.Join(xdg.DataHome, "CodeGame", name+".json"))
+func RestoreSession(name string) (Session, error) {
+	data, err := os.ReadFile(path.Join(xdg.DataHome, "codegame", name+".json"))
 	if err != nil {
-		return State{}, err
+		return Session{}, err
 	}
 
-	var state State
-	err = json.Unmarshal(data, &state)
+	var session Session
+	err = json.Unmarshal(data, &session)
 
-	state.Name = name
+	session.Name = name
 
-	return state, err
+	return session, err
 }
 
-func (s State) Save() error {
+func (s Session) Save() error {
 	if s.Name == "" {
 		return errors.New("empty name")
 	}
@@ -48,7 +48,7 @@ func (s State) Save() error {
 	return os.WriteFile(path.Join(dir, s.Name+".json"), data, 0644)
 }
 
-func (s State) Remove() error {
+func (s Session) Remove() error {
 	if s.Name == "" {
 		return nil
 	}

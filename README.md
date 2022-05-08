@@ -49,11 +49,11 @@ func main() {
 		fmt.Println("GameInfoOnce")
 	})
 
-	// Try to restore the previous state (gameId, playerId, playerSecret).
-	state, err := cg.RestoreState("test")
+	// Try to restore the previous session (gameId, playerId, playerSecret).
+	session, err := cg.RestoreSession("test")
 	if err == nil {
-		// Connect to the game still stored in state.
-		err = socket.Connect(state.GameId, state.PlayerId, state.PlayerSecret)
+		// Connect to the game still stored in session.
+		err = socket.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
 	}
 
 	if err != nil {
@@ -64,16 +64,16 @@ func main() {
 		}
 
 		// Join the previously created game.
-		state, err = socket.Join(gameId, "username")
+		session, err = socket.Join(gameId, "username")
 		if err != nil {
 			log.Fatalf("failed to join game: %s", err)
 		}
 	}
 
-	// Save the current state (gameId, playerId, playerSecret).
-	err = state.Save()
+	// Save the current session (gameId, playerId, playerSecret).
+	err = session.Save()
 	if err != nil {
-		log.Printf("failed to save state: %s", err)
+		log.Printf("failed to save session: %s", err)
 	}
 
 	// Start listening for events.

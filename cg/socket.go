@@ -18,7 +18,7 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
-	state          State
+	session        Session
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
@@ -29,7 +29,7 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 	socket := &Socket{
 		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:  make(map[string]string),
-		state: State{
+		session: Session{
 			Name: game,
 		},
 	}
@@ -75,33 +75,33 @@ func (s *Socket) Create(public bool) (string, error) {
 	return data.GameId, err
 }
 
-// Join sends a join_game event to the server and returns a State object once it receives a joined_game and a player_secret event.
-func (s *Socket) Join(gameId, username string) (State, error) {
+// Join sends a join_game event to the server and returns a Session object once it receives a joined_game and a player_secret event.
+func (s *Socket) Join(gameId, username string) (Session, error) {
 	res, err := s.sendEventAndWaitForResponse(EventJoinGame, EventJoinGameData{
 		GameId:   gameId,
 		Username: username,
 	}, EventJoinedGame, EventPlayerSecret)
 	if err != nil {
-		return State{}, err
+		return Session{}, err
 	}
 
 	var joinedData EventJoinedGameData
 	err = res[0].Event.UnmarshalData(&joinedData)
 	if err != nil {
-		return State{}, err
+		return Session{}, err
 	}
 
 	var playerSecretData EventPlayerSecretData
 	err = res[1].Event.UnmarshalData(&playerSecretData)
 	if err != nil {
-		return State{}, err
+		return Session{}, err
 	}
 
-	s.state.GameId = gameId
-	s.state.PlayerId = res[0].Origin
-	s.state.PlayerSecret = playerSecretData.Secret
+	s.session.GameId = gameId
+	s.session.PlayerId = res[0].Origin
+	s.session.PlayerSecret = playerSecretData.Secret
 
-	return s.state, nil
+	return s.session, nil
 }
 
 // Connect sends a connect_game event to the server and returns once it receives a connected_game event.
@@ -259,7 +259,7 @@ func (s *Socket) Leave() error {
 		delete(s.usernameCache, key)
 	}
 
-	s.state.Remove()
+	s.session.Remove()
 
 	return s.Emit(EventLeaveGame, EventLeaveGameData{})
 }
