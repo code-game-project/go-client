@@ -229,7 +229,7 @@ func (s *Socket) RemoveCallback(id CallbackId) {
 }
 
 // Emit sends a new event to the server.
-func (s *Socket) Emit(eventName EventName, eventData interface{}) error {
+func (s *Socket) Emit(eventName EventName, eventData any) error {
 	event := Event{
 		Name: eventName,
 	}
