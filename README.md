@@ -1,5 +1,5 @@
 # Go-Client
-![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.2-orange)
+![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.3-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://github.com/code-game-project).
@@ -38,15 +38,15 @@ func main() {
 	})
 
 	// Register a game_info event listener.
-	socket.On(cg.EventGameInfo, func(origin string, event cg.Event) {
-		var data cg.EventGameInfoData
+	socket.On(cg.EventInfo, func(origin string, event cg.Event) {
+		var data cg.EventInfoData
 		event.UnmarshalData(&data)
 		fmt.Println(origin, event.Name, data)
 	})
 
 	// Register a game_info event listener, which is only triggered once.
-	socket.OnOnce(cg.EventGameInfo, func(origin string, event cg.Event) {
-		fmt.Println("GameInfoOnce")
+	socket.OnOnce(cg.EventInfo, func(origin string, event cg.Event) {
+		fmt.Println("InfoOnce")
 	})
 
 	// Try to restore the previous session (gameId, playerId, playerSecret).

@@ -40,18 +40,18 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 	}
 	socket.wsConn = wsConn
 
-	socket.On(EventJoinedGame, func(origin string, event Event) {
-		var data EventJoinedGameData
+	socket.On(EventNewPlayer, func(origin string, event Event) {
+		var data EventNewPlayerData
 		event.UnmarshalData(&data)
 		socket.cacheUser(origin, data.Username)
 	})
-	socket.On(EventLeftGame, func(origin string, event Event) {
-		var data EventLeftGameData
+	socket.On(EventLeft, func(origin string, event Event) {
+		var data EventLeftData
 		event.UnmarshalData(&data)
 		socket.uncacheUser(origin)
 	})
-	socket.On(EventGameInfo, func(origin string, event Event) {
-		var data EventGameInfoData
+	socket.On(EventInfo, func(origin string, event Event) {
+		var data EventInfoData
 		event.UnmarshalData(&data)
 		for id, name := range data.Players {
 			socket.cacheUser(id, name)
@@ -63,43 +63,37 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 
 // Create sends a create_game event to the server and returns the gameId on success.
 func (s *Socket) Create(public bool) (string, error) {
-	res, err := s.sendEventAndWaitForResponse(EventCreateGame, EventCreateGameData{
+	res, err := s.sendEventAndWaitForResponse(EventCreate, EventCreateData{
 		Public: public,
-	}, EventCreatedGame)
+	}, EventCreated)
 	if err != nil {
 		return "", err
 	}
 
-	var data EventCreatedGameData
-	err = res[0].Event.UnmarshalData(&data)
+	var data EventCreatedData
+	err = res.Event.UnmarshalData(&data)
 	return data.GameId, err
 }
 
 // Join sends a join_game event to the server and returns a Session object once it receives a joined_game and a player_secret event.
 func (s *Socket) Join(gameId, username string) (Session, error) {
-	res, err := s.sendEventAndWaitForResponse(EventJoinGame, EventJoinGameData{
+	res, err := s.sendEventAndWaitForResponse(EventJoin, EventJoinData{
 		GameId:   gameId,
 		Username: username,
-	}, EventJoinedGame, EventPlayerSecret)
+	}, EventJoined)
 	if err != nil {
 		return Session{}, err
 	}
 
-	var joinedData EventJoinedGameData
-	err = res[0].Event.UnmarshalData(&joinedData)
-	if err != nil {
-		return Session{}, err
-	}
-
-	var playerSecretData EventPlayerSecretData
-	err = res[1].Event.UnmarshalData(&playerSecretData)
+	var data EventJoinedData
+	err = res.Event.UnmarshalData(&data)
 	if err != nil {
 		return Session{}, err
 	}
 
 	s.session.GameId = gameId
-	s.session.PlayerId = res[0].Origin
-	s.session.PlayerSecret = playerSecretData.Secret
+	s.session.PlayerId = res.Origin
+	s.session.PlayerSecret = data.Secret
 
 	return s.session, nil
 }
@@ -117,40 +111,24 @@ func (s *Socket) Connect(gameId, playerId, secret string) error {
 // sendEventAndWaitForResponse sends event with eventData and waits until it receives expectedReponse.
 // sendEventAndWaitForResponse returns the response event.
 // Registered event listeners will be triggered.
-func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, expectedReponse ...EventName) ([]eventWrapper, error) {
+func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, expectedReponse EventName) (eventWrapper, error) {
 	s.Emit(event, eventData)
-
-	events := make([]eventWrapper, len(expectedReponse))
 
 	for {
 		wrapper, err := s.receiveEvent()
 		if err != nil {
-			return []eventWrapper{}, err
+			return eventWrapper{}, err
 		}
 		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
 
-		for i, expected := range expectedReponse {
-			if wrapper.Event.Name == expected {
-				events[i] = wrapper
-				break
-			}
-		}
-
-		done := true
-		for i, expected := range expectedReponse {
-			if events[i].Event.Name != expected {
-				done = false
-				break
-			}
-		}
-		if done {
-			return events, nil
+		if wrapper.Event.Name == expectedReponse {
+			return wrapper, nil
 		}
 
 		if wrapper.Event.Name == EventError {
 			var data EventErrorData
 			wrapper.Event.UnmarshalData(&data)
-			return []eventWrapper{}, errors.New(data.Reason)
+			return eventWrapper{}, errors.New(data.Reason)
 		}
 	}
 }
@@ -233,6 +211,11 @@ func (s *Socket) Emit(eventName EventName, eventData any) error {
 	event := Event{
 		Name: eventName,
 	}
+
+	if eventData == nil {
+		eventData = struct{}{}
+	}
+
 	err := event.marshalData(eventData)
 	if err != nil {
 		return err
@@ -261,7 +244,7 @@ func (s *Socket) Leave() error {
 
 	s.session.Remove()
 
-	return s.Emit(EventLeaveGame, EventLeaveGameData{})
+	return s.Emit(EventLeave, nil)
 }
 
 // Close closes the underlying websocket connection.
