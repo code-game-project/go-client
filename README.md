@@ -1,5 +1,5 @@
 # Go-Client
-![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.3-orange)
+![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.4-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://github.com/code-game-project).
@@ -25,7 +25,7 @@ import (
 
 func main() {
 	// Open a websocket connection with CodeGame server.
-	socket, err := cg.NewSocket("test", "ws://127.0.0.1:8080")
+	socket, err := cg.NewSocket("test", "localhost:8080")
 	if err != nil {
 		log.Fatalf("failed to connect to server: %s", err)
 	}

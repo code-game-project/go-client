@@ -1,25 +1,9 @@
 /*
-CodeGame v0.3
+CodeGame v0.4
 */
 package cg
 
 type EventName string
-
-// Create a new game.
-const EventCreate EventName = "cg_create"
-
-type EventCreateData struct {
-	// If public is set to true, the game will be listed publicly.
-	Public bool `json:"public"`
-}
-
-// The `cg_created` event is the response of the server to the client, which sent the create_game event.
-const EventCreated EventName = "cg_created"
-
-type EventCreatedData struct {
-	// The ID of the game that was created.
-	GameId string `json:"game_id"`
-}
 
 // Join an existing game by ID.
 const EventJoin EventName = "cg_join"
@@ -102,8 +86,7 @@ type EventErrorData struct {
 
 // IsStandardEvent returns true if eventName is a standard event.
 func IsStandardEvent(eventName EventName) bool {
-	return eventName == EventCreate || eventName == EventCreated || eventName == EventJoin ||
-		eventName == EventJoined || eventName == EventNewPlayer || eventName == EventLeave ||
-		eventName == EventLeft || eventName == EventConnect || eventName == EventConnected ||
-		eventName == EventInfo || eventName == EventError
+	return eventName == EventJoin || eventName == EventJoined || eventName == EventNewPlayer ||
+		eventName == EventLeave || eventName == EventLeft || eventName == EventConnect ||
+		eventName == EventConnected || eventName == EventInfo || eventName == EventError
 }

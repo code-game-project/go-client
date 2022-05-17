@@ -1,9 +1,13 @@
 package cg
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -18,15 +22,22 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
+	domain         string
+	ssl            bool
 	session        Session
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
 }
 
-// NewSocket opens a new websocket connection with the CodeGame server listening at wsURL and returns a new Connection struct.
-func NewSocket(game string, wsURL string) (*Socket, error) {
+// NewSocket opens a new websocket connection with the CodeGame server listening at domain (e.g. my-game.io) and returns a new Connection struct.
+func NewSocket(game string, domain string) (*Socket, error) {
+	domain = strings.TrimPrefix(domain, "http://")
+	domain = strings.TrimPrefix(domain, "https://")
+	domain = strings.TrimSuffix(domain, "/")
+
 	socket := &Socket{
+		domain:         domain,
 		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:  make(map[string]string),
 		session: Session{
@@ -34,7 +45,13 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 		},
 	}
 
-	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	res, err := http.Get("https://" + domain)
+	if err == nil {
+		res.Body.Close()
+		socket.ssl = true
+	}
+
+	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create websocket connection: %w", err)
 	}
@@ -61,18 +78,36 @@ func NewSocket(game string, wsURL string) (*Socket, error) {
 	return socket, nil
 }
 
-// Create sends a create_game event to the server and returns the gameId on success.
+// Create creates a new game on the server and returns the id of the created game.
 func (s *Socket) Create(public bool) (string, error) {
-	res, err := s.sendEventAndWaitForResponse(EventCreate, EventCreateData{
+	type request struct {
+		Public bool `json:"public"`
+	}
+	data, err := json.Marshal(request{
 		Public: public,
-	}, EventCreated)
+	})
 	if err != nil {
 		return "", err
 	}
 
-	var data EventCreatedData
-	err = res.Event.UnmarshalData(&data)
-	return data.GameId, err
+	body := bytes.NewBuffer(data)
+	resp, err := http.Post(s.baseURL(false)+"/games", "application/json", body)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	data, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	type response struct {
+		GameId string `json:"game_id"`
+	}
+	var r response
+	err = json.Unmarshal(data, &r)
+	return r.GameId, err
 }
 
 // Join sends a join_game event to the server and returns a Session object once it receives a joined_game and a player_secret event.
@@ -272,4 +307,20 @@ func (s *Socket) cacheUser(playerId, username string) {
 
 func (s *Socket) uncacheUser(playerId string) {
 	delete(s.usernameCache, playerId)
+}
+
+func (s *Socket) baseURL(websocket bool) string {
+	if websocket {
+		if s.ssl {
+			return "wss://" + s.domain
+		} else {
+			return "ws://" + s.domain
+		}
+	} else {
+		if s.ssl {
+			return "https://" + s.domain
+		} else {
+			return "http://" + s.domain
+		}
+	}
 }
