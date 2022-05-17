@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -22,16 +23,17 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
+	name           string
 	domain         string
 	ssl            bool
-	session        Session
+	session        session
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
 }
 
 // NewSocket opens a new websocket connection with the CodeGame server listening at domain (e.g. my-game.io) and returns a new Connection struct.
-func NewSocket(game string, domain string) (*Socket, error) {
+func NewSocket(domain string) (*Socket, error) {
 	domain = strings.TrimPrefix(domain, "http://")
 	domain = strings.TrimPrefix(domain, "https://")
 	domain = strings.TrimSuffix(domain, "/")
@@ -40,9 +42,6 @@ func NewSocket(game string, domain string) (*Socket, error) {
 		domain:         domain,
 		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:  make(map[string]string),
-		session: Session{
-			Name: game,
-		},
 	}
 
 	res, err := http.Get("https://" + domain)
@@ -50,6 +49,24 @@ func NewSocket(game string, domain string) (*Socket, error) {
 		res.Body.Close()
 		socket.ssl = true
 	}
+
+	type response struct {
+		Name string `json:"name"`
+	}
+	res, err = http.Get(socket.baseURL(false) + "/info")
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to server: %w", err)
+	}
+	defer res.Body.Close()
+	var body response
+	err = json.NewDecoder(res.Body).Decode(&body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode /info data: %w", err)
+	}
+	if body.Name == "" {
+		return nil, fmt.Errorf("empty game name")
+	}
+	socket.name = body.Name
 
 	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
 	if err != nil {
@@ -111,35 +128,53 @@ func (s *Socket) Create(public bool) (string, error) {
 }
 
 // Join sends a join_game event to the server and returns a Session object once it receives a joined_game and a player_secret event.
-func (s *Socket) Join(gameId, username string) (Session, error) {
+func (s *Socket) Join(gameId, username string) error {
+	if s.session.Name != "" {
+		return errors.New("already joined a game")
+	}
+
+	if username == "" {
+		return errors.New("empty username")
+	}
+
 	res, err := s.sendEventAndWaitForResponse(EventJoin, EventJoinData{
 		GameId:   gameId,
 		Username: username,
 	}, EventJoined)
 	if err != nil {
-		return Session{}, err
+		return err
 	}
 
 	var data EventJoinedData
 	err = res.Event.UnmarshalData(&data)
 	if err != nil {
-		return Session{}, err
+		return err
 	}
 
-	s.session.GameId = gameId
-	s.session.PlayerId = res.Origin
-	s.session.PlayerSecret = data.Secret
-
-	return s.session, nil
+	s.session = newSession(s.name, username, gameId, res.Origin, data.Secret)
+	err = s.session.save()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to save session:", err)
+	}
+	return nil
 }
 
 // Connect sends a connect_game event to the server and returns once it receives a connected_game event.
-func (s *Socket) Connect(gameId, playerId, secret string) error {
-	_, err := s.sendEventAndWaitForResponse(EventConnect, EventConnectData{
-		GameId:   gameId,
-		PlayerId: playerId,
-		Secret:   secret,
+func (s *Socket) Connect(username string) error {
+	var err error
+	s.session, err = loadSession(s.name, username)
+	if err != nil {
+		return err
+	}
+	_, err = s.sendEventAndWaitForResponse(EventConnect, EventConnectData{
+		GameId:   s.session.GameId,
+		PlayerId: s.session.PlayerId,
+		Secret:   s.session.PlayerSecret,
 	}, EventConnected)
+	if err != nil {
+		s.session.remove()
+		s.session = session{}
+	}
 	return err
 }
 
@@ -266,6 +301,7 @@ func (s *Socket) Emit(eventName EventName, eventData any) error {
 }
 
 // Leave sends a leave_game event to the server and clears all non-standard event listeners.
+// It also deletes the current session.
 func (s *Socket) Leave() error {
 	for key := range s.eventListeners {
 		if !IsStandardEvent(key) {
@@ -277,7 +313,7 @@ func (s *Socket) Leave() error {
 		delete(s.usernameCache, key)
 	}
 
-	s.session.Remove()
+	s.session.remove()
 
 	return s.Emit(EventLeave, nil)
 }

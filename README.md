@@ -16,7 +16,6 @@ go get github.com/code-game-project/go-client/cg
 package main
 
 import (
-	"fmt"
 	"log"
 
 	// Import CodeGame client library.
@@ -25,7 +24,7 @@ import (
 
 func main() {
 	// Open a websocket connection with CodeGame server.
-	socket, err := cg.NewSocket("test", "localhost:8080")
+	socket, err := cg.NewSocket("localhost:8080")
 	if err != nil {
 		log.Fatalf("failed to connect to server: %s", err)
 	}
@@ -37,25 +36,8 @@ func main() {
 		log.Printf("server error: %s", data.Reason)
 	})
 
-	// Register a game_info event listener.
-	socket.On(cg.EventInfo, func(origin string, event cg.Event) {
-		var data cg.EventInfoData
-		event.UnmarshalData(&data)
-		fmt.Println(origin, event.Name, data)
-	})
-
-	// Register a game_info event listener, which is only triggered once.
-	socket.OnOnce(cg.EventInfo, func(origin string, event cg.Event) {
-		fmt.Println("InfoOnce")
-	})
-
-	// Try to restore the previous session (gameId, playerId, playerSecret).
-	session, err := cg.RestoreSession("test")
-	if err == nil {
-		// Connect to the game still stored in session.
-		err = socket.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
-	}
-
+	// Try to connect with a previous session.
+	err = socket.Connect("username")
 	if err != nil {
 		// Create a new private game and store its id in 'gameId'.
 		gameId, err := socket.Create(false)
@@ -64,16 +46,10 @@ func main() {
 		}
 
 		// Join the previously created game.
-		session, err = socket.Join(gameId, "username")
+		err = socket.Join(gameId, "username")
 		if err != nil {
 			log.Fatalf("failed to join game: %s", err)
 		}
-	}
-
-	// Save the current session (gameId, playerId, playerSecret).
-	err = session.Save()
-	if err != nil {
-		log.Printf("failed to save session: %s", err)
 	}
 
 	// Start listening for events.

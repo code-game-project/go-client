@@ -4,37 +4,49 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/adrg/xdg"
 )
 
-type Session struct {
+type session struct {
 	Name         string `json:"-"`
+	Username     string `json:"-"`
 	GameId       string `json:"game_id"`
 	PlayerId     string `json:"player_id"`
 	PlayerSecret string `json:"player_secret"`
 }
 
-func RestoreSession(name string) (Session, error) {
-	data, err := os.ReadFile(path.Join(xdg.DataHome, "codegame", name+".json"))
+func newSession(name, username, gameId, playerId, playerSecret string) session {
+	return session{
+		Name:         name,
+		Username:     username,
+		GameId:       gameId,
+		PlayerId:     playerId,
+		PlayerSecret: playerSecret,
+	}
+}
+
+func loadSession(name, username string) (session, error) {
+	data, err := os.ReadFile(filepath.Join(xdg.DataHome, "codegame", name, username+".json"))
 	if err != nil {
-		return Session{}, err
+		return session{}, err
 	}
 
-	var session Session
+	var session session
 	err = json.Unmarshal(data, &session)
 
 	session.Name = name
+	session.Username = username
 
 	return session, err
 }
 
-func (s Session) Save() error {
+func (s session) save() error {
 	if s.Name == "" {
 		return errors.New("empty name")
 	}
-	dir := path.Join(xdg.DataHome, "CodeGame")
+	dir := filepath.Join(xdg.DataHome, "codegame", s.Name)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
@@ -45,12 +57,12 @@ func (s Session) Save() error {
 		return err
 	}
 
-	return os.WriteFile(path.Join(dir, s.Name+".json"), data, 0644)
+	return os.WriteFile(filepath.Join(dir, s.Username+".json"), data, 0644)
 }
 
-func (s Session) Remove() error {
+func (s session) remove() error {
 	if s.Name == "" {
 		return nil
 	}
-	return os.Remove(path.Join(xdg.DataHome, "CodeGame", s.Name+".json"))
+	return os.Remove(filepath.Join(xdg.DataHome, "codegame", s.Name, s.Username+".json"))
 }
