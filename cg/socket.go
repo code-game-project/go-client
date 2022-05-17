@@ -57,7 +57,8 @@ func NewSocket(domain string) (*Socket, error) {
 	}
 
 	type response struct {
-		Name string `json:"name"`
+		Name      string `json:"name"`
+		CGVersion string `json:"cg_version"`
 	}
 	res, err = http.Get(socket.baseURL(false) + "/info")
 	if err != nil {
@@ -73,6 +74,10 @@ func NewSocket(domain string) (*Socket, error) {
 		return nil, fmt.Errorf("empty game name")
 	}
 	socket.name = body.Name
+
+	if body.CGVersion != CGVersion {
+		fmt.Fprintf(os.Stderr, "WARNING: CodeGame version mismatch. Server: v%s, client: v%s\n", body.CGVersion, CGVersion)
+	}
 
 	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
 	if err != nil {
