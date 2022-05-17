@@ -351,8 +351,9 @@ func (s *Socket) startListenLoop() {
 				}
 				s.running = false
 				close(s.eventWrapperChan)
+			} else {
+				s.eventWrapperChan <- wrapper
 			}
-			s.eventWrapperChan <- wrapper
 		}
 	}()
 }
