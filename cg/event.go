@@ -6,7 +6,8 @@ import (
 	"github.com/google/uuid"
 )
 
-type eventWrapper struct {
+// A wrapper struct around and event and its origin.
+type EventWrapper struct {
 	Origin string `json:"origin"`
 	Event  Event  `json:"event"`
 }

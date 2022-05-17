@@ -52,10 +52,31 @@ func main() {
 		}
 	}
 
-	// Start listening for events.
-	err = socket.Listen()
+	// Start listening for events. Blocks until the connection is closed.
+	err = socket.RunEventLoop()
 	if err != nil {
 		log.Fatalf("error: %s", err)
+	}
+
+	// ======= ALTERNATIVELY =======
+
+	// manual event loop
+	for {
+		// NextEvent returns the next event in the queue or ok = false if there is none.
+		// Registered event listeners will be triggered.
+		// event -> The polled event. Only valid if ok == true.
+		// ok -> Whether there was an event in the queue
+		// err -> cg.ErrClosed if closed.
+		event, ok, err := socket.NextEvent()
+		if err != nil {
+			if err != cg.ErrClosed {
+				log.Fatalf("error: %s", err)
+			}
+			break
+		}
+		if ok {
+			// do something with event
+		}
 	}
 }
 ```

@@ -19,6 +19,7 @@ var (
 	ErrInvalidMessageType = errors.New("invalid message type")
 	ErrEncodeFailed       = errors.New("failed to encode json object")
 	ErrDecodeFailed       = errors.New("failed to decode event")
+	ErrClosed             = errors.New("connection closed")
 )
 
 // Socket represents the connection with a CodeGame server and handles events.
@@ -30,6 +31,10 @@ type Socket struct {
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
+
+	running          bool
+	eventWrapperChan chan EventWrapper
+	err              error
 }
 
 // NewSocket opens a new websocket connection with the CodeGame server listening at domain (e.g. my-game.io) and returns a new Connection struct.
@@ -39,9 +44,10 @@ func NewSocket(domain string) (*Socket, error) {
 	domain = strings.TrimSuffix(domain, "/")
 
 	socket := &Socket{
-		domain:         domain,
-		eventListeners: make(map[EventName]map[CallbackId]OnEventCallback),
-		usernameCache:  make(map[string]string),
+		domain:           domain,
+		eventListeners:   make(map[EventName]map[CallbackId]OnEventCallback),
+		usernameCache:    make(map[string]string),
+		eventWrapperChan: make(chan EventWrapper),
 	}
 
 	res, err := http.Get("https://" + domain)
@@ -156,6 +162,9 @@ func (s *Socket) Join(gameId, username string) error {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to save session:", err)
 	}
+
+	s.startListenLoop()
+
 	return nil
 }
 
@@ -174,70 +183,42 @@ func (s *Socket) Connect(username string) error {
 	if err != nil {
 		s.session.remove()
 		s.session = session{}
+	} else {
+		s.startListenLoop()
 	}
 	return err
 }
 
-// sendEventAndWaitForResponse sends event with eventData and waits until it receives expectedReponse.
-// sendEventAndWaitForResponse returns the response event.
-// Registered event listeners will be triggered.
-func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, expectedReponse EventName) (eventWrapper, error) {
-	s.Emit(event, eventData)
-
-	for {
-		wrapper, err := s.receiveEvent()
-		if err != nil {
-			return eventWrapper{}, err
-		}
-		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
-
-		if wrapper.Event.Name == expectedReponse {
-			return wrapper, nil
-		}
-
-		if wrapper.Event.Name == EventError {
-			var data EventErrorData
-			wrapper.Event.UnmarshalData(&data)
-			return eventWrapper{}, errors.New(data.Reason)
-		}
-	}
-}
-
-// Listen starts listening for events and triggers registered event listeners.
+// RunEventLoop starts listening for events and triggers registered event listeners.
 // Returns on close or error.
-func (s *Socket) Listen() error {
-	for {
-		wrapper, err := s.receiveEvent()
-		if err != nil {
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
-				return nil
-			} else {
-				return err
-			}
+func (s *Socket) RunEventLoop() error {
+	for s.running {
+		wrapper, ok := <-s.eventWrapperChan
+		if !ok {
+			break
 		}
 		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
 	}
+	if s.err == ErrClosed {
+		return nil
+	}
+	return s.err
 }
 
-func (s *Socket) receiveEvent() (eventWrapper, error) {
-	msgType, msg, err := s.wsConn.ReadMessage()
-	if err != nil {
-		return eventWrapper{}, err
+// NextEvent returns the next event in the queue or ok = false if there is none.
+// Registered event listeners will be triggered.
+func (s *Socket) NextEvent() (EventWrapper, bool, error) {
+	select {
+	case wrapper, ok := <-s.eventWrapperChan:
+		if ok {
+			s.triggerEventListeners(wrapper.Origin, wrapper.Event)
+			return wrapper, true, nil
+		} else {
+			return EventWrapper{}, false, s.err
+		}
+	default:
+		return EventWrapper{}, false, nil
 	}
-	if msgType != websocket.TextMessage {
-		return eventWrapper{}, ErrInvalidMessageType
-	}
-
-	var wrapper eventWrapper
-	err = json.Unmarshal(msg, &wrapper)
-	if err != nil {
-		return eventWrapper{}, ErrDecodeFailed
-	}
-	if wrapper.Event.Name == "" {
-		return eventWrapper{}, ErrDecodeFailed
-	}
-
-	return wrapper, nil
 }
 
 // On registers a callback that is triggered when event is received.
@@ -276,8 +257,8 @@ func (s *Socket) RemoveCallback(id CallbackId) {
 	}
 }
 
-// Emit sends a new event to the server.
-func (s *Socket) Emit(eventName EventName, eventData any) error {
+// Send sends a new event to the server.
+func (s *Socket) Send(eventName EventName, eventData any) error {
 	event := Event{
 		Name: eventName,
 	}
@@ -315,11 +296,14 @@ func (s *Socket) Leave() error {
 
 	s.session.remove()
 
-	return s.Emit(EventLeave, nil)
+	s.running = false
+
+	return s.Send(EventLeave, nil)
 }
 
 // Close closes the underlying websocket connection.
 func (s *Socket) Close() error {
+	s.running = false
 	s.wsConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Now().Add(5*time.Second))
 	return s.wsConn.Close()
 }
@@ -327,6 +311,71 @@ func (s *Socket) Close() error {
 // Returns the username associated with playerId.
 func (s *Socket) GetUser(playerId string) string {
 	return s.usernameCache[playerId]
+}
+
+// sendEventAndWaitForResponse sends event with eventData and waits until it receives expectedReponse.
+// sendEventAndWaitForResponse returns the response event.
+// Registered event listeners will be triggered.
+func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, expectedReponse EventName) (EventWrapper, error) {
+	s.Send(event, eventData)
+
+	for {
+		wrapper, err := s.receiveEvent()
+		if err != nil {
+			return EventWrapper{}, err
+		}
+		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
+
+		if wrapper.Event.Name == expectedReponse {
+			return wrapper, nil
+		}
+
+		if wrapper.Event.Name == EventError {
+			var data EventErrorData
+			wrapper.Event.UnmarshalData(&data)
+			return EventWrapper{}, errors.New(data.Reason)
+		}
+	}
+}
+
+func (s *Socket) startListenLoop() {
+	s.running = true
+	go func() {
+		for s.running {
+			wrapper, err := s.receiveEvent()
+			if err != nil {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
+					s.err = ErrClosed
+				} else {
+					s.err = err
+				}
+				s.running = false
+				close(s.eventWrapperChan)
+			}
+			s.eventWrapperChan <- wrapper
+		}
+	}()
+}
+
+func (s *Socket) receiveEvent() (EventWrapper, error) {
+	msgType, msg, err := s.wsConn.ReadMessage()
+	if err != nil {
+		return EventWrapper{}, err
+	}
+	if msgType != websocket.TextMessage {
+		return EventWrapper{}, ErrInvalidMessageType
+	}
+
+	var wrapper EventWrapper
+	err = json.Unmarshal(msg, &wrapper)
+	if err != nil {
+		return EventWrapper{}, ErrDecodeFailed
+	}
+	if wrapper.Event.Name == "" {
+		return EventWrapper{}, ErrDecodeFailed
+	}
+
+	return wrapper, nil
 }
 
 func (s *Socket) triggerEventListeners(origin string, event Event) {
