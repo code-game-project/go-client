@@ -39,8 +39,15 @@ type Socket struct {
 
 // NewSocket opens a new websocket connection with the CodeGame server listening at domain (e.g. my-game.io) and returns a new Connection struct.
 func NewSocket(domain string) (*Socket, error) {
-	domain = strings.TrimPrefix(domain, "http://")
-	domain = strings.TrimPrefix(domain, "https://")
+	if strings.HasPrefix(domain, "http://") {
+		domain = strings.TrimPrefix(domain, "http://")
+	} else if strings.HasPrefix(domain, "https://") {
+		domain = strings.TrimPrefix(domain, "https://")
+	} else if strings.HasPrefix(domain, "ws://") {
+		domain = strings.TrimPrefix(domain, "ws://")
+	} else if strings.HasPrefix(domain, "wss://") {
+		domain = strings.TrimPrefix(domain, "wss://")
+	}
 	domain = strings.TrimSuffix(domain, "/")
 
 	socket := &Socket{
