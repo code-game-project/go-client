@@ -83,7 +83,7 @@ func NewSocket(domain string) (*Socket, error) {
 	socket.name = body.Name
 
 	if body.CGVersion != CGVersion {
-		fmt.Fprintf(os.Stderr, "WARNING: CodeGame version mismatch. Server: v%s, client: v%s\n", body.CGVersion, CGVersion)
+		fmt.Fprintf(os.Stderr, "\x1b[33mWARNING: CodeGame version mismatch. Server: v%s, client: v%s\n\x1b[0m", body.CGVersion, CGVersion)
 	}
 
 	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
@@ -180,25 +180,44 @@ func (s *Socket) Join(gameId, username string) error {
 	return nil
 }
 
-// Connect sends a connect_game event to the server and returns once it receives a connected_game event.
-func (s *Socket) Connect(username string) error {
-	var err error
-	s.session, err = loadSession(s.name, username)
+// RestoreSession tries to restore the session and use it to reconnect to the game.
+func (s *Socket) RestoreSession(username string) error {
+	session, err := loadSession(s.name, username)
 	if err != nil {
 		return err
 	}
-	_, err = s.sendEventAndWaitForResponse(EventConnect, EventConnectData{
-		GameId:   s.session.GameId,
-		PlayerId: s.session.PlayerId,
-		Secret:   s.session.PlayerSecret,
-	}, EventConnected)
+	err = s.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
 	if err != nil {
-		s.session.remove()
-		s.session = session{}
-	} else {
-		s.startListenLoop()
+		session.remove()
 	}
 	return err
+}
+
+// Connect connects to a game and player on the server.
+func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
+	event, err := s.sendEventAndWaitForResponse(EventConnect, EventConnectData{
+		GameId:   gameId,
+		PlayerId: playerId,
+		Secret:   playerSecret,
+	}, EventConnected)
+	if err != nil {
+		return err
+	}
+
+	var data EventConnectedData
+	err = event.Event.UnmarshalData(&data)
+	if err != nil {
+		return err
+	}
+
+	s.session = newSession(s.name, data.Username, gameId, playerId, playerSecret)
+	err = s.session.save()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Failed to save session:", err)
+	}
+
+	s.startListenLoop()
+	return nil
 }
 
 // RunEventLoop starts listening for events and triggers registered event listeners.
@@ -320,8 +339,8 @@ func (s *Socket) Close() error {
 	return s.wsConn.Close()
 }
 
-// Returns the username associated with playerId.
-func (s *Socket) GetUser(playerId string) string {
+// ResolveUsername returns the username associated with playerId.
+func (s *Socket) ResolveUsername(playerId string) string {
 	return s.usernameCache[playerId]
 }
 
@@ -345,7 +364,7 @@ func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, exp
 		if wrapper.Event.Name == EventError {
 			var data EventErrorData
 			wrapper.Event.UnmarshalData(&data)
-			return EventWrapper{}, errors.New(data.Reason)
+			return EventWrapper{}, errors.New(data.Message)
 		}
 	}
 }

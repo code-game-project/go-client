@@ -1,5 +1,6 @@
 # Go-Client
-![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.4-orange)
+![CG Protocol Version](https://img.shields.io/badge/Protocol-v0.5-orange)
+![CG Client Version](https://img.shields.io/badge/Client-v0.1-yellow)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://github.com/code-game-project).
@@ -33,11 +34,11 @@ func main() {
 	socket.On(cg.EventError, func(origin string, event cg.Event) {
 		var data cg.EventErrorData
 		event.UnmarshalData(&data)
-		log.Printf("server error: %s", data.Reason)
+		log.Printf("server error: %s", data.Message)
 	})
 
 	// Try to connect with a previous session.
-	err = socket.Connect("username")
+	err = socket.RestoreSession("username")
 	if err != nil {
 		// Create a new private game and store its id in 'gameId'.
 		gameId, err := socket.Create(false)

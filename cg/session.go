@@ -15,7 +15,10 @@ type session struct {
 	GameId       string `json:"game_id"`
 	PlayerId     string `json:"player_id"`
 	PlayerSecret string `json:"player_secret"`
+	Path         string `json:"-"`
 }
+
+var gamesPath = filepath.Join(xdg.DataHome, "codegame", "games")
 
 func newSession(name, username, gameId, playerId, playerSecret string) session {
 	return session{
@@ -28,7 +31,7 @@ func newSession(name, username, gameId, playerId, playerSecret string) session {
 }
 
 func loadSession(name, username string) (session, error) {
-	data, err := os.ReadFile(filepath.Join(xdg.DataHome, "codegame", name, username+".json"))
+	data, err := os.ReadFile(filepath.Join(gamesPath, name, username+".json"))
 	if err != nil {
 		return session{}, err
 	}
@@ -46,7 +49,7 @@ func (s session) save() error {
 	if s.Name == "" {
 		return errors.New("empty name")
 	}
-	dir := filepath.Join(xdg.DataHome, "codegame", s.Name)
+	dir := filepath.Join(gamesPath, s.Name)
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
@@ -64,5 +67,5 @@ func (s session) remove() error {
 	if s.Name == "" {
 		return nil
 	}
-	return os.Remove(filepath.Join(xdg.DataHome, "codegame", s.Name, s.Username+".json"))
+	return os.Remove(filepath.Join(gamesPath, s.Name, s.Username+".json"))
 }

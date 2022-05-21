@@ -1,6 +1,3 @@
-/*
-CodeGame v0.4
-*/
 package cg
 
 type EventName string
@@ -62,6 +59,8 @@ type EventConnectData struct {
 const EventConnected EventName = "cg_connected"
 
 type EventConnectedData struct {
+	// The username of the player.
+	Username string `json:"username"`
 }
 
 // The `cg_info` event is sent to every player that joins or connects to a game and catches them up
@@ -80,8 +79,8 @@ type EventInfoData struct {
 const EventError EventName = "cg_error"
 
 type EventErrorData struct {
-	// The reason the error occured.
-	Reason string `json:"reason"`
+	// The error message.
+	Message string `json:"message"`
 }
 
 // IsStandardEvent returns true if eventName is a standard event.
