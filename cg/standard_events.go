@@ -47,7 +47,7 @@ type EventLeftData struct {
 const EventConnect EventName = "cg_connect"
 
 type EventConnectData struct {
-	// The ID of game to connect to.
+	// The ID of the game to connect to.
 	GameId string `json:"game_id"`
 	// The ID of the player to connect to.
 	PlayerId string `json:"player_id"`
@@ -63,7 +63,16 @@ type EventConnectedData struct {
 	Username string `json:"username"`
 }
 
-// The `cg_info` event is sent to every player that joins or connects to a game and catches them up
+// The `cg_spectate` event is used to spectate a game.
+// Spectators receive all public game events but cannot send any.
+const EventSpectate EventName = "cg_spectate"
+
+type EventSpectateData struct {
+	// The ID of the game to spectate.
+	GameId string `json:"game_id"`
+}
+
+// The `cg_info` event is sent to every player that joins, connects to or spectates a game and catches them up
 // on things that may have happened before they were connected.
 const EventInfo EventName = "cg_info"
 
@@ -87,5 +96,5 @@ type EventErrorData struct {
 func IsStandardEvent(eventName EventName) bool {
 	return eventName == EventJoin || eventName == EventJoined || eventName == EventNewPlayer ||
 		eventName == EventLeave || eventName == EventLeft || eventName == EventConnect ||
-		eventName == EventConnected || eventName == EventInfo || eventName == EventError
+		eventName == EventConnected || eventName == EventSpectate || eventName == EventInfo || eventName == EventError
 }

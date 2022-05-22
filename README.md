@@ -1,6 +1,6 @@
 # Go-Client
-![CG Protocol Version](https://img.shields.io/badge/Protocol-v0.5-orange)
-![CG Client Version](https://img.shields.io/badge/Client-v0.1-yellow)
+![CG Protocol Version](https://img.shields.io/badge/Protocol-v0.6-orange)
+![CG Client Version](https://img.shields.io/badge/Client-v0.2-yellow)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://github.com/code-game-project).

@@ -220,6 +220,19 @@ func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
 	return nil
 }
 
+// Spectate joins the game as a spectator.
+func (s *Socket) Spectate(gameId string) error {
+	_, err := s.sendEventAndWaitForResponse(EventSpectate, EventSpectateData{
+		GameId: gameId,
+	}, EventInfo)
+	if err != nil {
+		return err
+	}
+
+	s.startListenLoop()
+	return nil
+}
+
 // RunEventLoop starts listening for events and triggers registered event listeners.
 // Returns on close or error.
 func (s *Socket) RunEventLoop() error {
