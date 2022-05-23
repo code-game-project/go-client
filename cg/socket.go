@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,7 +83,7 @@ func NewSocket(domain string) (*Socket, error) {
 	}
 	socket.name = body.Name
 
-	if body.CGVersion != CGVersion {
+	if !isVersionCompatible(body.CGVersion) {
 		fmt.Fprintf(os.Stderr, "\x1b[33mWARNING: CodeGame version mismatch. Server: v%s, client: v%s\n\x1b[0m", body.CGVersion, CGVersion)
 	}
 
@@ -453,4 +454,36 @@ func (s *Socket) baseURL(websocket bool) string {
 			return "http://" + s.domain
 		}
 	}
+}
+
+func isVersionCompatible(serverVersion string) bool {
+	serverParts := strings.Split(serverVersion, ".")
+	if len(serverParts) == 1 {
+		serverParts = append(serverParts, "0")
+	}
+
+	clientParts := strings.Split(CGVersion, ".")
+	if len(clientParts) == 1 {
+		clientParts = append(clientParts, "0")
+	}
+
+	if serverParts[0] != clientParts[0] {
+		return false
+	}
+
+	if clientParts[0] == "0" {
+		return serverParts[1] == clientParts[1]
+	}
+
+	serverMinor, err := strconv.Atoi(serverParts[1])
+	if err != nil {
+		return false
+	}
+
+	clientMinor, err := strconv.Atoi(clientParts[1])
+	if err != nil {
+		return false
+	}
+
+	return clientMinor >= serverMinor
 }
