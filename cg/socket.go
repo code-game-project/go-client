@@ -28,7 +28,7 @@ type Socket struct {
 	name           string
 	domain         string
 	ssl            bool
-	session        session
+	session        Session
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackId]OnEventCallback
 	usernameCache  map[string]string
@@ -230,6 +230,8 @@ func (s *Socket) Spectate(gameId string) error {
 		return err
 	}
 
+	s.session = newSession(s.name, "", gameId, "", "")
+
 	s.startListenLoop()
 	return nil
 }
@@ -356,6 +358,11 @@ func (s *Socket) Close() error {
 // ResolveUsername returns the username associated with playerId.
 func (s *Socket) ResolveUsername(playerId string) string {
 	return s.usernameCache[playerId]
+}
+
+// Session returns details of the current session.
+func (s *Socket) Session() Session {
+	return s.session
 }
 
 // sendEventAndWaitForResponse sends event with eventData and waits until it receives expectedReponse.

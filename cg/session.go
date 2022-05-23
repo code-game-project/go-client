@@ -9,7 +9,7 @@ import (
 	"github.com/adrg/xdg"
 )
 
-type session struct {
+type Session struct {
 	Name         string `json:"-"`
 	Username     string `json:"-"`
 	GameId       string `json:"game_id"`
@@ -20,8 +20,8 @@ type session struct {
 
 var gamesPath = filepath.Join(xdg.DataHome, "codegame", "games")
 
-func newSession(name, username, gameId, playerId, playerSecret string) session {
-	return session{
+func newSession(name, username, gameId, playerId, playerSecret string) Session {
+	return Session{
 		Name:         name,
 		Username:     username,
 		GameId:       gameId,
@@ -30,13 +30,13 @@ func newSession(name, username, gameId, playerId, playerSecret string) session {
 	}
 }
 
-func loadSession(name, username string) (session, error) {
+func loadSession(name, username string) (Session, error) {
 	data, err := os.ReadFile(filepath.Join(gamesPath, name, username+".json"))
 	if err != nil {
-		return session{}, err
+		return Session{}, err
 	}
 
-	var session session
+	var session Session
 	err = json.Unmarshal(data, &session)
 
 	session.Name = name
@@ -45,7 +45,7 @@ func loadSession(name, username string) (session, error) {
 	return session, err
 }
 
-func (s session) save() error {
+func (s Session) save() error {
 	if s.Name == "" {
 		return errors.New("empty name")
 	}
@@ -63,7 +63,7 @@ func (s session) save() error {
 	return os.WriteFile(filepath.Join(dir, s.Username+".json"), data, 0644)
 }
 
-func (s session) remove() error {
+func (s Session) remove() error {
 	if s.Name == "" {
 		return nil
 	}
