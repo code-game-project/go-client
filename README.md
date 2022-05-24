@@ -11,6 +11,8 @@ This is the Go client library for [CodeGame](https://github.com/code-game-projec
 go get github.com/code-game-project/go-client/cg
 ```
 
+## [Getting Started](./docs/GETTING_STARTED.md)
+
 ## Usage
 
 ```go
@@ -30,13 +32,6 @@ func main() {
 		log.Fatalf("failed to connect to server: %s", err)
 	}
 
-	// Register error event listener.
-	socket.On(cg.EventError, func(origin string, event cg.Event) {
-		var data cg.EventErrorData
-		event.UnmarshalData(&data)
-		log.Printf("server error: %s", data.Message)
-	})
-
 	// Try to connect with a previous session.
 	err = socket.RestoreSession("username")
 	if err != nil {
@@ -52,6 +47,13 @@ func main() {
 			log.Fatalf("failed to join game: %s", err)
 		}
 	}
+
+	// Register error event listener.
+	socket.On(cg.EventError, func(origin string, event cg.Event) {
+		var data cg.EventErrorData
+		event.UnmarshalData(&data)
+		log.Printf("server error: %s", data.Message)
+	})
 
 	// Start listening for events. Blocks until the connection is closed.
 	err = socket.RunEventLoop()
