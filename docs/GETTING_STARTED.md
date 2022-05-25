@@ -11,6 +11,7 @@ It does not focus on creating a beautiful and pleasant to use application. This 
 
 ## Table of Contents
 
+- [Prerequisites](#prerequisites)
 - [Setting up the project](#setting-up-the-project)
   - [Go module setup](#go-module-setup)
   - [Installing go-client](#installing-go-client)
@@ -32,6 +33,12 @@ It does not focus on creating a beautiful and pleasant to use application. This 
   - [The mark event](#the-mark-event)
   - [The game_over event](#the-game_over-event)
 - [What next?](#what-next)
+
+## Prerequisites
+
+In order to follow this guide you will have to have the following software installed:
+
+- [Go](https://go.dev) 1.18+
 
 ## Setting up the project
 
