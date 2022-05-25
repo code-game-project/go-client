@@ -1,6 +1,7 @@
 # Getting Started
 
-This guide will walk you through creating your own client for the [tic-tac-toe-simple](https://github.com/code-game-project/tic-tac-toe-simple) game.
+This guide will walk you through creating your own client for the [tic-tac-toe-simple](https://github.com/code-game-project/tic-tac-toe-simple)
+game at `codegame.julianh.de/tic-tac-toe-simple`.
 It is recommended that you first read the general CodeGame [getting started guide](https://github.com/code-game-project/.github/blob/main/getting-started.md).
 
 ## Scope
@@ -10,8 +11,6 @@ It does not focus on creating a beautiful and pleasant to use application. This 
 
 ## Table of Contents
 
-- [Prerequisites](#prerequisites)
-- [Installing tic-tac-toe-simple](#installing-tic-tac-toe-simple)
 - [Setting up the project](#setting-up-the-project)
   - [Go module setup](#go-module-setup)
   - [Installing go-client](#installing-go-client)
@@ -33,28 +32,6 @@ It does not focus on creating a beautiful and pleasant to use application. This 
   - [The mark event](#the-mark-event)
   - [The game_over event](#the-game_over-event)
 - [What next?](#what-next)
-
-## Prerequisites
-
-In order to follow this guide you will need to have the following software installed/configured.
-
-- [Go](https://go.dev) 1.18+
-  - $GOBIN must be on your $PATH
-
-## Installing tic-tac-toe-simple
-
-Before we can begin creating our client we need to install the tic-tac-toe-simple game server.
-Fortunately Go provides an easy way of installing software directly from Github:
-
-```sh
-go install github.com/code-game-project/tic-tac-toe-simple@latest
-```
-
-After you have completed the previous step you will be able to run the game server locally on your machine:
-
-```sh
-tic-tac-toe-simple --port=8080
-```
 
 ## Setting up the project
 
@@ -103,9 +80,8 @@ Tic-tac-toe-simple adds several new events to CodeGame.
 In order for you to use these you will need to generate an `events.go` file with the [cg-gen-events](https://github.com/code-game-project/cg-gen-events) utility containing all of the event definitions you will need:
 
 ```sh
-# Usually the game server URL would be enough.
-# Because we are executing the server locally without providing it with a `.cge` file we have to use the github URL instead.
-cg-gen-events https://raw.githubusercontent.com/code-game-project/tic-tac-toe-simple/main/events.cge
+# cg-gen-events will automatically fetch the CGE file from the game server.
+cg-gen-events https://codegame.julianh.de/tic-tac-toe-simple
 ```
 
 You will probably need to change the package name in `events.go` to
@@ -122,7 +98,8 @@ The first step in every CodeGame client is to open a connection with the game se
 With this client library it's as simple as calling the `cg.NewSocket` function with the domain of the game server:
 
 ```go
-socket, err := cg.NewSocket("localhost:8080")
+// cg.NewSocket only takes the domain of the game server NOT the URL. It automatically determines the protocol to use.
+socket, err := cg.NewSocket("codegame.julianh.de/tic-tac-toe-simple")
 ```
 
 ### Creating a game
@@ -176,7 +153,7 @@ func main() {
 	}
 
 	// Connect to the game server. This does not yet join any game.
-	socket, err := cg.NewSocket("localhost:8080")
+	socket, err := cg.NewSocket("codegame.julianh.de/tic-tac-toe-simple")
 	if err != nil {
 		log.Fatal(err)
 	}
