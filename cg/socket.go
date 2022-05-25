@@ -26,7 +26,7 @@ var (
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
 	name           string
-	domain         string
+	url            string
 	ssl            bool
 	session        Session
 	wsConn         *websocket.Conn
@@ -38,27 +38,28 @@ type Socket struct {
 	err              error
 }
 
-// NewSocket opens a new websocket connection with the CodeGame server listening at domain (e.g. my-game.io) and returns a new Connection struct.
-func NewSocket(domain string) (*Socket, error) {
-	if strings.HasPrefix(domain, "http://") {
-		domain = strings.TrimPrefix(domain, "http://")
-	} else if strings.HasPrefix(domain, "https://") {
-		domain = strings.TrimPrefix(domain, "https://")
-	} else if strings.HasPrefix(domain, "ws://") {
-		domain = strings.TrimPrefix(domain, "ws://")
-	} else if strings.HasPrefix(domain, "wss://") {
-		domain = strings.TrimPrefix(domain, "wss://")
+// NewSocket opens a new websocket connection with the CodeGame server listening at the URL (e.g. my-game.io) and returns a new Connection struct.
+// You can omit the protocol. NewSocket will determine the best protocol to use.
+func NewSocket(url string) (*Socket, error) {
+	if strings.HasPrefix(url, "http://") {
+		url = strings.TrimPrefix(url, "http://")
+	} else if strings.HasPrefix(url, "https://") {
+		url = strings.TrimPrefix(url, "https://")
+	} else if strings.HasPrefix(url, "ws://") {
+		url = strings.TrimPrefix(url, "ws://")
+	} else if strings.HasPrefix(url, "wss://") {
+		url = strings.TrimPrefix(url, "wss://")
 	}
-	domain = strings.TrimSuffix(domain, "/")
+	url = strings.TrimSuffix(url, "/")
 
 	socket := &Socket{
-		domain:           domain,
+		url:              url,
 		eventListeners:   make(map[EventName]map[CallbackId]OnEventCallback),
 		usernameCache:    make(map[string]string),
 		eventWrapperChan: make(chan EventWrapper),
 	}
 
-	res, err := http.Get("https://" + domain)
+	res, err := http.Get("https://" + url)
 	if err == nil {
 		res.Body.Close()
 		socket.ssl = true
@@ -450,15 +451,15 @@ func (s *Socket) uncacheUser(playerId string) {
 func (s *Socket) baseURL(websocket bool) string {
 	if websocket {
 		if s.ssl {
-			return "wss://" + s.domain
+			return "wss://" + s.url
 		} else {
-			return "ws://" + s.domain
+			return "ws://" + s.url
 		}
 	} else {
 		if s.ssl {
-			return "https://" + s.domain
+			return "https://" + s.url
 		} else {
-			return "http://" + s.domain
+			return "http://" + s.url
 		}
 	}
 }

@@ -95,10 +95,10 @@ package main
 ### Connecting to the game server
 
 The first step in every CodeGame client is to open a connection with the game server.
-With this client library it's as simple as calling the `cg.NewSocket` function with the domain of the game server:
+With this client library it's as simple as calling the `cg.NewSocket` function with the URL of the game server:
 
 ```go
-// cg.NewSocket only takes the domain of the game server NOT the URL. It automatically determines the protocol to use.
+// You can omit the protocol. The client library will determine the best protocol to use.
 socket, err := cg.NewSocket("codegame.julianh.de/tic-tac-toe-simple")
 ```
 
