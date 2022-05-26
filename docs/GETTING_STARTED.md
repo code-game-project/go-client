@@ -1,7 +1,7 @@
 # Getting Started
 
 This guide will walk you through creating your own client for the [tic-tac-toe-simple](https://github.com/code-game-project/tic-tac-toe-simple)
-game at `codegame.julianh.de/tic-tac-toe-simple`.
+game at `games.code-game.org/tic-tac-toe-simple`.
 It is recommended that you first read the general CodeGame [getting started guide](https://github.com/code-game-project/.github/blob/main/getting-started.md).
 
 ## Scope
@@ -88,7 +88,7 @@ In order for you to use these you will need to generate an `events.go` file with
 
 ```sh
 # cg-gen-events will automatically fetch the CGE file from the game server.
-cg-gen-events https://codegame.julianh.de/tic-tac-toe-simple
+cg-gen-events https://games.code-game.org/tic-tac-toe-simple
 ```
 
 You will probably need to change the package name in `events.go` to
@@ -106,7 +106,7 @@ With this client library it's as simple as calling the `cg.NewSocket` function w
 
 ```go
 // You can omit the protocol. The client library will determine the best protocol to use.
-socket, err := cg.NewSocket("codegame.julianh.de/tic-tac-toe-simple")
+socket, err := cg.NewSocket("games.code-game.org/tic-tac-toe-simple")
 ```
 
 ### Creating a game
@@ -160,7 +160,7 @@ func main() {
 	}
 
 	// Connect to the game server. This does not yet join any game.
-	socket, err := cg.NewSocket("codegame.julianh.de/tic-tac-toe-simple")
+	socket, err := cg.NewSocket("games.code-game.org/tic-tac-toe-simple")
 	if err != nil {
 		log.Fatal(err)
 	}
