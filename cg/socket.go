@@ -282,8 +282,8 @@ func (s *Socket) On(event EventName, callback OnEventCallback) CallbackId {
 	return id
 }
 
-// OnOnce registers a callback that is triggered only the first time event is received.
-func (s *Socket) OnOnce(event EventName, callback OnEventCallback) CallbackId {
+// Once registers a callback that is triggered only the first time event is received.
+func (s *Socket) Once(event EventName, callback OnEventCallback) CallbackId {
 	if s.eventListeners[event] == nil {
 		s.eventListeners[event] = make(map[CallbackId]OnEventCallback)
 	}

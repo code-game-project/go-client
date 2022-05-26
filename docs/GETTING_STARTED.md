@@ -202,7 +202,7 @@ go run . <username> <game_id>
 
 ## Listening for events
 
-You can register an event listener with the `socket.On` or the `socket.OnOnce` method.
+You can register an event listener with the `socket.On` or the `socket.Once` method.
 
 For example to register an error event handler use the following snippet:
 
