@@ -2,7 +2,7 @@
 
 This guide will walk you through creating your own client for the [tic-tac-toe-simple](https://github.com/code-game-project/tic-tac-toe-simple)
 game at `games.code-game.org/tic-tac-toe-simple`.
-It is recommended that you first read the general CodeGame [getting started guide](https://github.com/code-game-project/.github/blob/main/getting-started.md).
+It is recommended that you first read the general CodeGame [getting started guide](https://docs.code-game.org/guides/getting-started).
 
 ## Scope
 
@@ -494,9 +494,9 @@ With only about 170 lines of code our tic-tac-toe-simple client is finished. But
 
 I recommend reading the following specifications to build a stronger understanding of CodeGame:
 
-- [CodeGame Protocol Specification](https://github.com/code-game-project/docs/blob/main/protocol-specification.md) (Definitely useful)
-- [CodeGame Events Language Specification](https://github.com/code-game-project/docs/blob/main/code-game-events-language-specification.md) (Useful if you want to write a game or understand existing games better)
-- [CodeGame Game Server Specification](https://github.com/code-game-project/docs/blob/main/game-server-specification.md) (Mostly useful if you plan to write a client which displays more information like a list of public games from a server)
-- [CodeGame Client Library Specification](https://github.com/code-game-project/docs/blob/main/client-library-specfication.md) (Useful for understanding how client libraries are usually structured)
+- [CodeGame Protocol Specification](https://docs.code-game.org/specifications/protocol) (Definitely useful)
+- [CodeGame Events Language Specification](https://docs.code-game.org/specifications/cge) (Useful if you want to write a game or understand existing games better)
+- [CodeGame Game Server Specification](https://docs.code-game.org/specifications/game-server) (Mostly useful if you plan to write a client which displays more information like a list of public games from a server)
+- [CodeGame Client Library Specification](https://docs.code-game.org/specifications/client-library) (Useful for understanding how client libraries are usually structured)
 
-Other than that you can look at the [list of official games](https://github.com/orgs/code-game-project/teams/games/repositories) and try to implement a client for them.
+Other than that you can look at the [list of official games](https://games.code-game.org) and try to implement a client for them.
