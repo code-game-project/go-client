@@ -13,9 +13,6 @@ It does not focus on creating a beautiful and pleasant to use application. This 
 
 - [Prerequisites](#prerequisites)
 - [Setting up the project](#setting-up-the-project)
-  - [Go module setup](#go-module-setup)
-  - [Installing go-client](#installing-go-client)
-  - [Generating the tic-tac-toe-simple event definitions](#generating-the-tic-tac-toe-simple-event-definitions)
 - [Joining a game](#joining-a-game)
   - [Connecting to the game server](#connecting-to-the-game-server)
   - [Creating a game](#creating-a-game)
@@ -33,69 +30,28 @@ It does not focus on creating a beautiful and pleasant to use application. This 
   - [The mark event](#the-mark-event)
   - [The game_over event](#the-game_over-event)
 - [What next?](#what-next)
+- [Complete main.go](#complete-maingo)
 
 ## Prerequisites
 
 In order to follow this guide you will have to have the following software installed:
 
 - [Go](https://go.dev) 1.18+
+- [CodeGame CLI](https://github.com/code-game-project/codegame-cli)
 
 ## Setting up the project
 
-### Go module setup
+The [CodeGame CLI](https://github.com/code-game-project/codegame-cli) allows you to quickly get started with writing CodeGame applications.
 
-The next step is to create a new Go project for our game client using the following commands:
+To create a new game client simply execute `codegame new` in a terminal, choose 'Game Client' as the project type and enter these values:
+- Project name: *tictactoe-client*
+- Game server URL: *games.code-game.org/tic-tac-toe-simple*
+- Language: *Go*
+- Project module path: *github.com/\<username\>/tictactoe-client*
 
-```sh
-mkdir tic-tac-toe-simple-client
-cd tic-tac-toe-simple-client
-go mod init tic-tac-toe-simple-client
-```
+Finally choose whether you want to initialize Git, create a README or create a LICENSE.
 
-After creating the directory create a simple `main.go` file:
-
-```go
-package main
-
-func main() {
-
-}
-```
-
-### Installing go-client
-
-Now we need to install the [CodeGame client library for Go](https://github.com/code-game-project/go-client):
-
-```sh
-go get github.com/code-game-project/go-client/cg
-```
-
-The library can be imported into your code with an `import` statement:
-
-```go
-package main
-
-// Import go-client.
-import "github.com/code-game-project/go-client/cg"
-
-func main() {}
-```
-
-### Generating the tic-tac-toe-simple event definitions
-
-Tic-tac-toe-simple adds several new events to CodeGame.
-In order for you to use these you will need to generate an `events.go` file with the [cg-gen-events](https://github.com/code-game-project/cg-gen-events) utility containing all of the event definitions you will need:
-
-```sh
-# cg-gen-events will automatically fetch the CGE file from the game server.
-cg-gen-events https://games.code-game.org/tic-tac-toe-simple
-```
-
-You will probably need to change the package name in `events.go` to
-
-```go
-package main
-```
+The project will be available at `tictactoe-client/`. All of the code in this guide will be written into the `main.go` file.
 
 ## Joining a game
 
@@ -236,7 +192,7 @@ There are two ways of writing an event loop:
 2. Writing your own loop calling `socket.NextEvent` repeatedly.
 
 In this guide we will be using the first option because it is simpler.
-The second option is most often needed when you are using a framework which provides its own loop like Unity, Raylib or similar.
+The second option is most often needed when you are using a framework which requires its own loop like Unity, Raylib or similar.
 
 
 To start the event loop in our tic-tac-toe-simple client add the following line of code after registering the error event handler.
@@ -268,7 +224,7 @@ Let's declare and use the `client` struct:
 type client struct {
 	socket *cg.Socket
 	// Sign is defined in `events.go`
-	sign   Sign
+	sign   tictactoesimple.Sign
 }
 
 // Instead of calling `socket.RunEventLoop` directly in the main function we will call it in `client.run` after registering all needed event listeners.
@@ -299,9 +255,9 @@ When we receive the event we deserialize the event data, store the sign in the `
 
 ```go
 func (c *client) run() error {
-	c.socket.On(EventStart, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {
 		// Deserialize the event data.
-		var data EventStartData
+		var data tictactoesimple.EventStartData
 		event.UnmarshalData(&data)
 
 		// `socket.Session` returns a struct with useful information like the current game ID or the player ID.
@@ -323,10 +279,10 @@ In this case we want to print the error message.
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(EventStart, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {...})
 
-	c.socket.On(EventInvalidAction, func(origin string, event cg.Event) {
-		var data EventInvalidActionData
+	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventInvalidActionData
 		event.UnmarshalData(&data)
 		fmt.Println(data.Message)
 	})
@@ -342,10 +298,10 @@ Every time we receive this event we want to print the board to the console.
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(EventInvalidAction, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {...})
 
-	c.socket.On(EventBoard, func(origin string, event cg.Event) {
-		var data EventBoardData
+	c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventBoardData
 		event.UnmarshalData(&data)
 		c.printBoard(data.Board)
 	})
@@ -353,7 +309,7 @@ func (c *client) run() error {
 	// return c.socket.RunEventLoop()
 }
 
-func (c *client) printBoard(board [][]Field) {
+func (c *client) printBoard(board [][]tictactoesimple.Field) {
 	// Print a separator.
 	fmt.Println(strings.Repeat("=", 50))
 
@@ -362,7 +318,7 @@ func (c *client) printBoard(board [][]Field) {
 		// Loop through all columns.
 		for j := range board[i] {
 			// Print a '/' symbol if the field is not occupied.
-			if board[i][j].Sign == SignNone {
+			if board[i][j].Sign == tictactoesimple.SignNone {
 				fmt.Print("/")
 			} else {
 				// Otherwise print the sign on it.
@@ -385,10 +341,10 @@ Once we receive a `turn` event we need to check whether it's our turn and let th
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(EventBoard, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {...})
 
-	c.socket.On(EventTurn, func(origin string, event cg.Event) {
-		var data EventTurnData
+	c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventTurnData
 		event.UnmarshalData(&data)
 
 		if data.Sign == c.sign {
@@ -434,7 +390,8 @@ func (c *client) mark() {
 	column, _ := strconv.Atoi(coords[1])
 
 	// Send the `mark` event with the row and column to the server.
-	c.socket.Send(EventMark, EventMarkData{
+	c.socket.Send(tictactoesimple.EventMark, tictactoesimple.EventMarkData{
+		// Subtract 1 because the user enters a 1 based row number (1,2,3) while the server accepts a 0 based row number (0,1,2).
 		Row:    row - 1,
 		Column: column - 1,
 	})
@@ -446,16 +403,16 @@ Because of that we call the `mark` method at the bottom of the `invalid_action` 
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(EventStart, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {...})
 
-	c.socket.On(EventInvalidAction, func(origin string, event cg.Event) {
-		var data EventInvalidActionData
+	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventInvalidActionData
 		event.UnmarshalData(&data)
 		fmt.Println(data.Message)
 		c.mark() // <-------
 	})
 
-	// c.socket.On(EventBoard, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {...})
 }
 ```
 
@@ -467,11 +424,11 @@ Apart from the type of ending and the winning sign the `game_over` event also re
 For simplicity we will only print the outcome.
 
 ```go
-	// c.socket.On(EventTurn, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {...})
 
-	c.socket.On(EventGameOver, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.EventGameOver, func(origin string, event cg.Event) {
 		fmt.Println(strings.Repeat("=", 50))
-		var data EventGameOverData
+		var data tictactoesimple.EventGameOverData
 		event.UnmarshalData(&data)
 
 		// The boolean `tie` is true if it's a tie.
@@ -500,3 +457,188 @@ I recommend reading the following specifications to build a stronger understandi
 - [CodeGame Client Library Specification](https://docs.code-game.org/specifications/client-library) (Useful for understanding how client libraries are usually structured)
 
 Other than that you can look at the [list of official games](https://games.code-game.org) and try to implement a client for them.
+
+## Complete main.go
+
+```go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/Bananenpro/tictactoe-client/tictactoesimple"
+	"github.com/code-game-project/go-client/cg"
+)
+
+// The client struct stores the CodeGame socket and the sign of the current player ('x' or 'o')
+type client struct {
+	socket *cg.Socket
+	// Sign is defined in `events.go`
+	sign tictactoesimple.Sign
+}
+
+// Instead of calling `socket.RunEventLoop` directly in the main function we will call it in `client.run` after registering all needed event listeners.
+func (c *client) run() error {
+	c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {
+		// Deserialize the event data.
+		var data tictactoesimple.EventStartData
+		event.UnmarshalData(&data)
+
+		// `socket.Session` returns a struct with useful information like the current game ID or the player ID.
+		// In this case we need to player ID to receive the sign of our player.
+		c.sign = data.Signs[c.socket.Session().PlayerId]
+
+		// Print the sign.
+		fmt.Println("Found a match! Your sign is:", c.sign)
+	})
+
+	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventInvalidActionData
+		event.UnmarshalData(&data)
+		fmt.Println(data.Message)
+		c.mark()
+	})
+
+	c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventBoardData
+		event.UnmarshalData(&data)
+		c.printBoard(data.Board)
+	})
+
+	c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {
+		var data tictactoesimple.EventTurnData
+		event.UnmarshalData(&data)
+
+		if data.Sign == c.sign {
+			// It's our turn.
+			fmt.Println(strings.Repeat("=", 50))
+			c.mark()
+		} else {
+			// It's not our turn.
+			fmt.Println("Waiting for opponent…")
+		}
+	})
+
+	c.socket.On(tictactoesimple.EventGameOver, func(origin string, event cg.Event) {
+		fmt.Println(strings.Repeat("=", 50))
+		var data tictactoesimple.EventGameOverData
+		event.UnmarshalData(&data)
+
+		// The boolean `tie` is true if it's a tie.
+		if data.Tie {
+			fmt.Println("Tie!")
+		} else if data.WinnerSign == c.sign {
+			// The current player wins if the winner sign matches the player sign.
+			fmt.Println("You win!")
+		} else {
+			fmt.Println("You lose!")
+		}
+	})
+
+	return c.socket.RunEventLoop()
+}
+
+func (c *client) mark() {
+
+	// Ask the user to input a field (e.g. 1,1 for the top left field)
+	fmt.Print("Where do you want to place your sign? (row,column) ")
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Scan()
+	location := scanner.Text()
+
+	// TODO input validation
+
+	// Split row and column.
+	coords := strings.Split(location, ",")
+
+	// Convert row and column to an integer.
+	row, _ := strconv.Atoi(coords[0])
+	column, _ := strconv.Atoi(coords[1])
+
+	// Send the `mark` event with the row and column to the server.
+	c.socket.Send(tictactoesimple.EventMark, tictactoesimple.EventMarkData{
+		// Subtract 1 because the user enters a 1 based row number (1,2,3) while the server accepts a 0 based row number (0,1,2).
+		Row:    row - 1,
+		Column: column - 1,
+	})
+}
+
+func (c *client) printBoard(board [][]tictactoesimple.Field) {
+	// Print a separator.
+	fmt.Println(strings.Repeat("=", 50))
+
+	// Loop through all rows.
+	for i := range board {
+		// Loop through all columns.
+		for j := range board[i] {
+			// Print a '/' symbol if the field is not occupied.
+			if board[i][j].Sign == tictactoesimple.SignNone {
+				fmt.Print("/")
+			} else {
+				// Otherwise print the sign on it.
+				fmt.Print(board[i][j].Sign)
+			}
+		}
+		// Start a new row.
+		fmt.Print("\n")
+	}
+}
+
+func main() {
+	// Print usage if the user has not supplied a username.
+	if len(os.Args) == 1 {
+		fmt.Printf("Usage: %s <username> <gameId?>\n", os.Args[0])
+		os.Exit(1)
+	}
+
+	// Connect to the game server. This does not yet join any game.
+	socket, err := cg.NewSocket("games.code-game.org/tic-tac-toe-simple")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Try to restore a previous session. If it fails run the code inside of the if branch.
+	if err = socket.RestoreSession(os.Args[1]); err != nil {
+		var gameId string
+		// If the user has supplied a game ID, use it. Otherwise create a new game on the server.
+		if len(os.Args) == 3 {
+			gameId = os.Args[2]
+		} else {
+			gameId, err = socket.Create(false)
+			if err != nil {
+				log.Fatalf("failed to create game: %s", err)
+			}
+			fmt.Println("Game ID:", gameId)
+		}
+
+		// Join the game with the username provided as a command line argument.
+		err = socket.Join(gameId, os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// Register a callback which will be call every time the `cg_error` event is received.
+	socket.On(cg.EventError, func(origin string, event cg.Event) {
+		// Inside of the event handler you receive the origin of the event (either 'server' or the ID of a player) and the event itself.
+
+		// The event data is not yet usable. It first needs to be deserialized with these two lines of code:
+		var data cg.EventErrorData
+		event.UnmarshalData(&data)
+
+		// Finally print the error message.
+		fmt.Println("error:", data.Message)
+	})
+
+	client := &client{
+		socket: socket,
+	}
+	err = client.run()
+	// TODO handle err
+}
+```
