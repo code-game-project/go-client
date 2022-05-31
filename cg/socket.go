@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/code-game-project/codegame-cli/cli"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -85,7 +86,7 @@ func NewSocket(url string) (*Socket, error) {
 	socket.name = body.Name
 
 	if !isVersionCompatible(body.CGVersion) {
-		fmt.Fprintf(os.Stderr, "\x1b[33mWARNING: CodeGame version mismatch. Server: v%s, client: v%s\n\x1b[0m", body.CGVersion, CGVersion)
+		cli.Warn("CodeGame version mismatch. Server: v%s, client: v%s", body.CGVersion, CGVersion)
 	}
 
 	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
