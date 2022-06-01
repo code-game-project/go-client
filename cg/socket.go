@@ -95,18 +95,18 @@ func NewSocket(url string) (*Socket, error) {
 	}
 	socket.wsConn = wsConn
 
-	socket.On(EventNewPlayer, func(origin string, event Event) {
-		var data EventNewPlayerData
+	socket.On(NewPlayerEvent, func(origin string, event Event) {
+		var data NewPlayerEventData
 		event.UnmarshalData(&data)
 		socket.cacheUser(origin, data.Username)
 	})
-	socket.On(EventLeft, func(origin string, event Event) {
-		var data EventLeftData
+	socket.On(LeftEvent, func(origin string, event Event) {
+		var data LeftEventData
 		event.UnmarshalData(&data)
 		socket.uncacheUser(origin)
 	})
-	socket.On(EventInfo, func(origin string, event Event) {
-		var data EventInfoData
+	socket.On(InfoEvent, func(origin string, event Event) {
+		var data InfoEventData
 		event.UnmarshalData(&data)
 		for id, name := range data.Players {
 			socket.cacheUser(id, name)
@@ -158,15 +158,15 @@ func (s *Socket) Join(gameId, username string) error {
 		return errors.New("empty username")
 	}
 
-	res, err := s.sendEventAndWaitForResponse(EventJoin, EventJoinData{
+	res, err := s.sendEventAndWaitForResponse(JoinEvent, JoinEventData{
 		GameId:   gameId,
 		Username: username,
-	}, EventJoined)
+	}, JoinedEvent)
 	if err != nil {
 		return err
 	}
 
-	var data EventJoinedData
+	var data JoinedEventData
 	err = res.Event.UnmarshalData(&data)
 	if err != nil {
 		return err
@@ -198,16 +198,16 @@ func (s *Socket) RestoreSession(username string) error {
 
 // Connect connects to a game and player on the server.
 func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
-	event, err := s.sendEventAndWaitForResponse(EventConnect, EventConnectData{
+	event, err := s.sendEventAndWaitForResponse(ConnectEvent, ConnectEventData{
 		GameId:   gameId,
 		PlayerId: playerId,
 		Secret:   playerSecret,
-	}, EventConnected)
+	}, ConnectedEvent)
 	if err != nil {
 		return err
 	}
 
-	var data EventConnectedData
+	var data ConnectedEventData
 	err = event.Event.UnmarshalData(&data)
 	if err != nil {
 		return err
@@ -225,9 +225,9 @@ func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
 
 // Spectate joins the game as a spectator.
 func (s *Socket) Spectate(gameId string) error {
-	_, err := s.sendEventAndWaitForResponse(EventSpectate, EventSpectateData{
+	_, err := s.sendEventAndWaitForResponse(SpectateEvent, SpectateEventData{
 		GameId: gameId,
-	}, EventInfo)
+	}, InfoEvent)
 	if err != nil {
 		return err
 	}
@@ -347,7 +347,7 @@ func (s *Socket) Leave() error {
 
 	s.running = false
 
-	return s.Send(EventLeave, nil)
+	return s.Send(LeaveEvent, nil)
 }
 
 // Close closes the underlying websocket connection.
@@ -384,8 +384,8 @@ func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, exp
 			return wrapper, nil
 		}
 
-		if wrapper.Event.Name == EventError {
-			var data EventErrorData
+		if wrapper.Event.Name == ErrorEvent {
+			var data ErrorEventData
 			wrapper.Event.UnmarshalData(&data)
 			return EventWrapper{}, errors.New(data.Message)
 		}

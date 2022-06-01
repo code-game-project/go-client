@@ -166,11 +166,11 @@ For example to register an error event handler use the following snippet:
 // if err = socket.RestoreSession(os.Args[1]); err != nil {...}
 
 // Register a callback which will be call every time the `cg_error` event is received.
-socket.On(cg.EventError, func(origin string, event cg.Event) {
+socket.On(cg.ErrorEvent, func(origin string, event cg.Event) {
 	// Inside of the event handler you receive the origin of the event (either 'server' or the ID of a player) and the event itself.
 
 	// The event data is not yet usable. It first needs to be deserialized with these two lines of code:
-	var data cg.EventErrorData
+	var data cg.ErrorEventData
 	event.UnmarshalData(&data)
 
 	// Finally print the error message.
@@ -199,7 +199,7 @@ To start the event loop in our tic-tac-toe-simple client add the following line 
 
 
 ```go
-// socket.On(cg.EventError, func(origin string, event cg.Event) {...})
+// socket.On(cg.ErrorEvent, func(origin string, event cg.Event) {...})
 
 // socket.RunEventLoop will blook until the connection is closed.
 err = socket.RunEventLoop()
@@ -255,9 +255,9 @@ When we receive the event we deserialize the event data, store the sign in the `
 
 ```go
 func (c *client) run() error {
-	c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.StartEvent, func(origin string, event cg.Event) {
 		// Deserialize the event data.
-		var data tictactoesimple.EventStartData
+		var data tictactoesimple.StartEventData
 		event.UnmarshalData(&data)
 
 		// `socket.Session` returns a struct with useful information like the current game ID or the player ID.
@@ -279,10 +279,10 @@ In this case we want to print the error message.
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.StartEvent, func(origin string, event cg.Event) {...})
 
-	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventInvalidActionData
+	c.socket.On(tictactoesimple.InvalidActionEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.InvalidActionEventData
 		event.UnmarshalData(&data)
 		fmt.Println(data.Message)
 	})
@@ -298,10 +298,10 @@ Every time we receive this event we want to print the board to the console.
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.InvalidActionEvent, func(origin string, event cg.Event) {...})
 
-	c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventBoardData
+	c.socket.On(tictactoesimple.BoardEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.BoardEventData
 		event.UnmarshalData(&data)
 		c.printBoard(data.Board)
 	})
@@ -341,10 +341,10 @@ Once we receive a `turn` event we need to check whether it's our turn and let th
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.BoardEvent, func(origin string, event cg.Event) {...})
 
-	c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventTurnData
+	c.socket.On(tictactoesimple.TurnEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.TurnEventData
 		event.UnmarshalData(&data)
 
 		if data.Sign == c.sign {
@@ -390,7 +390,7 @@ func (c *client) mark() {
 	column, _ := strconv.Atoi(coords[1])
 
 	// Send the `mark` event with the row and column to the server.
-	c.socket.Send(tictactoesimple.EventMark, tictactoesimple.EventMarkData{
+	c.socket.Send(tictactoesimple.MarkEvent, tictactoesimple.MarkEventData{
 		// Subtract 1 because the user enters a 1 based row number (1,2,3) while the server accepts a 0 based row number (0,1,2).
 		Row:    row - 1,
 		Column: column - 1,
@@ -403,16 +403,16 @@ Because of that we call the `mark` method at the bottom of the `invalid_action` 
 
 ```go
 func (c *client) run() error {
-	// c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.StartEvent, func(origin string, event cg.Event) {...})
 
-	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventInvalidActionData
+	c.socket.On(tictactoesimple.InvalidActionEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.InvalidActionEventData
 		event.UnmarshalData(&data)
 		fmt.Println(data.Message)
 		c.mark() // <-------
 	})
 
-	// c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.BoardEvent, func(origin string, event cg.Event) {...})
 }
 ```
 
@@ -424,11 +424,11 @@ Apart from the type of ending and the winning sign the `game_over` event also re
 For simplicity we will only print the outcome.
 
 ```go
-	// c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {...})
+	// c.socket.On(tictactoesimple.TurnEvent, func(origin string, event cg.Event) {...})
 
-	c.socket.On(tictactoesimple.EventGameOver, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.GameOverEvent, func(origin string, event cg.Event) {
 		fmt.Println(strings.Repeat("=", 50))
-		var data tictactoesimple.EventGameOverData
+		var data tictactoesimple.GameOverEventData
 		event.UnmarshalData(&data)
 
 		// The boolean `tie` is true if it's a tie.
@@ -484,9 +484,9 @@ type client struct {
 
 // Instead of calling `socket.RunEventLoop` directly in the main function we will call it in `client.run` after registering all needed event listeners.
 func (c *client) run() error {
-	c.socket.On(tictactoesimple.EventStart, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.StartEvent, func(origin string, event cg.Event) {
 		// Deserialize the event data.
-		var data tictactoesimple.EventStartData
+		var data tictactoesimple.StartEventData
 		event.UnmarshalData(&data)
 
 		// `socket.Session` returns a struct with useful information like the current game ID or the player ID.
@@ -497,21 +497,21 @@ func (c *client) run() error {
 		fmt.Println("Found a match! Your sign is:", c.sign)
 	})
 
-	c.socket.On(tictactoesimple.EventInvalidAction, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventInvalidActionData
+	c.socket.On(tictactoesimple.InvalidActionEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.InvalidActionEventData
 		event.UnmarshalData(&data)
 		fmt.Println(data.Message)
 		c.mark()
 	})
 
-	c.socket.On(tictactoesimple.EventBoard, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventBoardData
+	c.socket.On(tictactoesimple.BoardEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.BoardEventData
 		event.UnmarshalData(&data)
 		c.printBoard(data.Board)
 	})
 
-	c.socket.On(tictactoesimple.EventTurn, func(origin string, event cg.Event) {
-		var data tictactoesimple.EventTurnData
+	c.socket.On(tictactoesimple.TurnEvent, func(origin string, event cg.Event) {
+		var data tictactoesimple.TurnEventData
 		event.UnmarshalData(&data)
 
 		if data.Sign == c.sign {
@@ -524,9 +524,9 @@ func (c *client) run() error {
 		}
 	})
 
-	c.socket.On(tictactoesimple.EventGameOver, func(origin string, event cg.Event) {
+	c.socket.On(tictactoesimple.GameOverEvent, func(origin string, event cg.Event) {
 		fmt.Println(strings.Repeat("=", 50))
-		var data tictactoesimple.EventGameOverData
+		var data tictactoesimple.GameOverEventData
 		event.UnmarshalData(&data)
 
 		// The boolean `tie` is true if it's a tie.
@@ -561,7 +561,7 @@ func (c *client) mark() {
 	column, _ := strconv.Atoi(coords[1])
 
 	// Send the `mark` event with the row and column to the server.
-	c.socket.Send(tictactoesimple.EventMark, tictactoesimple.EventMarkData{
+	c.socket.Send(tictactoesimple.MarkEvent, tictactoesimple.MarkEventData{
 		// Subtract 1 because the user enters a 1 based row number (1,2,3) while the server accepts a 0 based row number (0,1,2).
 		Row:    row - 1,
 		Column: column - 1,
@@ -624,11 +624,11 @@ func main() {
 	}
 
 	// Register a callback which will be call every time the `cg_error` event is received.
-	socket.On(cg.EventError, func(origin string, event cg.Event) {
+	socket.On(cg.ErrorEvent, func(origin string, event cg.Event) {
 		// Inside of the event handler you receive the origin of the event (either 'server' or the ID of a player) and the event itself.
 
 		// The event data is not yet usable. It first needs to be deserialized with these two lines of code:
-		var data cg.EventErrorData
+		var data cg.ErrorEventData
 		event.UnmarshalData(&data)
 
 		// Finally print the error message.

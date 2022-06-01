@@ -49,8 +49,8 @@ func main() {
 	}
 
 	// Register error event listener.
-	socket.On(cg.EventError, func(origin string, event cg.Event) {
-		var data cg.EventErrorData
+	socket.On(cg.ErrorEvent, func(origin string, event cg.Event) {
+		var data cg.ErrorEventData
 		event.UnmarshalData(&data)
 		log.Printf("server error: %s", data.Message)
 	})
