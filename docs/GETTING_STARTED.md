@@ -382,7 +382,7 @@ Now enjoy your very own tic-tac-toe multiplayer game.
 
 I recommend reading the following specifications to build a stronger understanding of CodeGame:
 
-- [CodeGame Protocol Specification](https://docs.code-game.org/specifications/protocol) (Definitely useful)
+- [CodeGame Protocol Specification](https://docs.code-game.org/specifications/protocol) (Useful if you want to know how CodeGame works under the hood)
 - [CodeGame Events Language Specification](https://docs.code-game.org/specifications/cge) (Useful if you want to write a game or understand existing games better)
 - [CodeGame Game Server Specification](https://docs.code-game.org/specifications/game-server) (Mostly useful if you plan to write a client which displays more information like a list of public games from a server)
 - [CodeGame Client Library Specification](https://docs.code-game.org/specifications/client-library) (Useful for understanding how client libraries are usually structured)
