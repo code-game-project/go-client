@@ -6,17 +6,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// A wrapper struct around and event and its origin.
-type EventWrapper struct {
-	Origin string `json:"origin"`
-	Event  Event  `json:"event"`
-}
-
 type CallbackId uuid.UUID
-type OnEventCallback func(origin string, event Event)
+type EventCallback func(event Event)
+
+type EventName string
 
 type Event struct {
 	Name EventName       `json:"name"`
+	Data json.RawMessage `json:"data"`
+}
+
+type CommandName string
+
+type Command struct {
+	Name CommandName     `json:"name"`
 	Data json.RawMessage `json:"data"`
 }
 
@@ -25,12 +28,12 @@ func (e *Event) UnmarshalData(targetObjPtr any) error {
 	return json.Unmarshal(e.Data, targetObjPtr)
 }
 
-// marshalData encodes obj into the Data field of the event.
-func (e *Event) marshalData(obj any) error {
+// marshalData encodes obj into the Data field of the command.
+func (c *Command) marshalData(obj any) error {
 	data, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
-	e.Data = data
+	c.Data = data
 	return nil
 }

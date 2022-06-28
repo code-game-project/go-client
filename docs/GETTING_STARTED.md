@@ -1,5 +1,7 @@
 # Getting Started
 
+**This guide is outdated.**
+
 This guide will walk you through creating your own client for the [tic-tac-toe-simple](https://github.com/code-game-project/tic-tac-toe-simple)
 game at `games.code-game.org/tic-tac-toe-simple`.
 It is recommended that you first read the general CodeGame [getting started guide](https://docs.code-game.org/guides/getting-started).

@@ -1,18 +1,13 @@
 package cg
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/code-game-project/codegame-cli/cli"
+	"github.com/Bananenpro/cli"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -26,170 +21,75 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
-	name           string
+	info           cgInfo
 	url            string
-	ssl            bool
+	tls            bool
 	session        Session
 	wsConn         *websocket.Conn
-	eventListeners map[EventName]map[CallbackId]OnEventCallback
+	eventListeners map[EventName]map[CallbackId]EventCallback
 	usernameCache  map[string]string
 
-	running          bool
-	eventWrapperChan chan EventWrapper
-	err              error
+	running   bool
+	eventChan chan Event
+	err       error
 }
 
-// NewSocket opens a new websocket connection with the CodeGame server listening at the URL (e.g. my-game.io) and returns a new Connection struct.
+// NewSocket creates a new Socket object ready to execute further actions.
 // You can omit the protocol. NewSocket will determine the best protocol to use.
 func NewSocket(url string) (*Socket, error) {
-	if strings.HasPrefix(url, "http://") {
-		url = strings.TrimPrefix(url, "http://")
-	} else if strings.HasPrefix(url, "https://") {
-		url = strings.TrimPrefix(url, "https://")
-	} else if strings.HasPrefix(url, "ws://") {
-		url = strings.TrimPrefix(url, "ws://")
-	} else if strings.HasPrefix(url, "wss://") {
-		url = strings.TrimPrefix(url, "wss://")
-	}
-	url = strings.TrimSuffix(url, "/")
-
+	url = trimURL(url)
 	socket := &Socket{
-		url:              url,
-		eventListeners:   make(map[EventName]map[CallbackId]OnEventCallback),
-		usernameCache:    make(map[string]string),
-		eventWrapperChan: make(chan EventWrapper),
+		url:            url,
+		tls:            isTLS(url),
+		eventListeners: make(map[EventName]map[CallbackId]EventCallback),
+		usernameCache:  make(map[string]string),
+		eventChan:      make(chan Event, 10),
 	}
 
-	res, err := http.Get("https://" + url)
-	if err == nil {
-		res.Body.Close()
-		socket.ssl = true
-	}
-
-	type response struct {
-		Name      string `json:"name"`
-		CGVersion string `json:"cg_version"`
-	}
-	res, err = http.Get(socket.baseURL(false) + "/info")
+	info, err := socket.fetchInfo()
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to server: %w", err)
+		return nil, err
 	}
-	defer res.Body.Close()
-	var body response
-	err = json.NewDecoder(res.Body).Decode(&body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode /info data: %w", err)
-	}
-	if body.Name == "" {
-		return nil, fmt.Errorf("empty game name")
-	}
-	socket.name = body.Name
+	socket.info = info
 
-	if !isVersionCompatible(body.CGVersion) {
-		cli.Warn("CodeGame version mismatch. Server: v%s, client: v%s", body.CGVersion, CGVersion)
+	if !isVersionCompatible(info.CGVersion) {
+		cli.Warn("CodeGame version mismatch. Server: v%s, client: v%s", info.CGVersion, CGVersion)
 	}
-
-	wsConn, _, err := websocket.DefaultDialer.Dial(socket.baseURL(true)+"/ws", nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create websocket connection: %w", err)
-	}
-	socket.wsConn = wsConn
-
-	socket.On(NewPlayerEvent, func(origin string, event Event) {
-		var data NewPlayerEventData
-		event.UnmarshalData(&data)
-		socket.cacheUser(origin, data.Username)
-	})
-	socket.On(LeftEvent, func(origin string, event Event) {
-		var data LeftEventData
-		event.UnmarshalData(&data)
-		socket.uncacheUser(origin)
-	})
-	socket.On(InfoEvent, func(origin string, event Event) {
-		var data InfoEventData
-		event.UnmarshalData(&data)
-		for id, name := range data.Players {
-			socket.cacheUser(id, name)
-		}
-	})
 
 	return socket, nil
 }
 
-// Create creates a new game on the server and returns the id of the created game.
-func (s *Socket) Create(public bool) (string, error) {
-	type request struct {
-		Public bool `json:"public"`
-	}
-	data, err := json.Marshal(request{
-		Public: public,
-	})
-	if err != nil {
-		return "", err
-	}
-
-	body := bytes.NewBuffer(data)
-	resp, err := http.Post(s.baseURL(false)+"/games", "application/json", body)
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	data, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	type response struct {
-		GameId string `json:"game_id"`
-	}
-	var r response
-	err = json.Unmarshal(data, &r)
-	return r.GameId, err
+// CreateGame creates a new game on the server and returns the id of the created game.
+func (s *Socket) CreateGame(public bool) (string, error) {
+	return s.createGame(public)
 }
 
-// Join sends a join_game event to the server and returns a Session object once it receives a joined_game and a player_secret event.
+// Join creates a new player in the game and connects to it.
+// Join panics if the socket is already connected to a game.
 func (s *Socket) Join(gameId, username string) error {
 	if s.session.Name != "" {
-		return errors.New("already joined a game")
+		panic("already connected to a game")
 	}
 
-	if username == "" {
-		return errors.New("empty username")
-	}
-
-	res, err := s.sendEventAndWaitForResponse(JoinEvent, JoinEventData{
-		GameId:   gameId,
-		Username: username,
-	}, JoinedEvent)
+	playerId, secret, err := s.createPlayer(gameId, username)
 	if err != nil {
 		return err
 	}
 
-	var data JoinedEventData
-	err = res.Event.UnmarshalData(&data)
-	if err != nil {
-		return err
-	}
-
-	s.session = newSession(s.name, username, gameId, res.Origin, data.Secret)
-	err = s.session.save()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to save session:", err)
-	}
-
-	s.startListenLoop()
-
-	return nil
+	return s.Connect(gameId, playerId, secret)
 }
 
 // RestoreSession tries to restore the session and use it to reconnect to the game.
+// RestoreSession panics if the socket is already connected to a game.
 func (s *Socket) RestoreSession(username string) error {
-	session, err := loadSession(s.name, username)
+	if s.session.Name != "" {
+		panic("already connected to a game")
+	}
+	session, err := loadSession(s.info.Name, username)
 	if err != nil {
 		return err
 	}
-	err = s.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
+	err = s.Connect(session.GameId, session.PlayerId, session.Secret)
 	if err != nil {
 		session.remove()
 	}
@@ -197,43 +97,40 @@ func (s *Socket) RestoreSession(username string) error {
 }
 
 // Connect connects to a game and player on the server.
-func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
-	event, err := s.sendEventAndWaitForResponse(ConnectEvent, ConnectEventData{
-		GameId:   gameId,
-		PlayerId: playerId,
-		Secret:   playerSecret,
-	}, ConnectedEvent)
+// Connect panics if the socket is already connected to a game.
+func (s *Socket) Connect(gameId, playerId, secret string) error {
+	err := s.connect(gameId, playerId, secret)
 	if err != nil {
 		return err
 	}
 
-	var data ConnectedEventData
-	err = event.Event.UnmarshalData(&data)
-	if err != nil {
-		return err
-	}
-
-	s.session = newSession(s.name, data.Username, gameId, playerId, playerSecret)
-	err = s.session.save()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Failed to save session:", err)
-	}
+	s.session = newSession(s.info.Name, "", gameId, playerId, secret)
 
 	s.startListenLoop()
+
+	username, err := s.fetchUsername(gameId, playerId)
+	if err != nil {
+		return err
+	}
+	s.usernameCache[playerId] = username
+
+	s.session.Username = username
+	err = s.session.save()
+	if err != nil {
+		cli.Error("Failed to save session:", err)
+	}
+
 	return nil
 }
 
 // Spectate joins the game as a spectator.
+// Spectate panics if the socket is already connected to a game.
 func (s *Socket) Spectate(gameId string) error {
-	_, err := s.sendEventAndWaitForResponse(SpectateEvent, SpectateEventData{
-		GameId: gameId,
-	}, InfoEvent)
+	err := s.spectate(gameId)
 	if err != nil {
 		return err
 	}
-
-	s.session = newSession(s.name, "", gameId, "", "")
-
+	s.session = newSession(s.info.Name, "", gameId, "", "")
 	s.startListenLoop()
 	return nil
 }
@@ -242,11 +139,11 @@ func (s *Socket) Spectate(gameId string) error {
 // Returns on close or error.
 func (s *Socket) RunEventLoop() error {
 	for s.running {
-		wrapper, ok := <-s.eventWrapperChan
+		event, ok := <-s.eventChan
 		if !ok {
 			break
 		}
-		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
+		s.triggerEventListeners(event)
 	}
 	if s.err == ErrClosed {
 		return nil
@@ -256,24 +153,24 @@ func (s *Socket) RunEventLoop() error {
 
 // NextEvent returns the next event in the queue or ok = false if there is none.
 // Registered event listeners will be triggered.
-func (s *Socket) NextEvent() (EventWrapper, bool, error) {
+func (s *Socket) NextEvent() (Event, bool, error) {
 	select {
-	case wrapper, ok := <-s.eventWrapperChan:
+	case event, ok := <-s.eventChan:
 		if ok {
-			s.triggerEventListeners(wrapper.Origin, wrapper.Event)
-			return wrapper, true, nil
+			s.triggerEventListeners(event)
+			return event, true, nil
 		} else {
-			return EventWrapper{}, false, s.err
+			return Event{}, false, s.err
 		}
 	default:
-		return EventWrapper{}, false, nil
+		return Event{}, false, nil
 	}
 }
 
-// On registers a callback that is triggered when event is received.
-func (s *Socket) On(event EventName, callback OnEventCallback) CallbackId {
+// On registers a callback that is triggered when the event is received.
+func (s *Socket) On(event EventName, callback EventCallback) CallbackId {
 	if s.eventListeners[event] == nil {
-		s.eventListeners[event] = make(map[CallbackId]OnEventCallback)
+		s.eventListeners[event] = make(map[CallbackId]EventCallback)
 	}
 
 	id := CallbackId(uuid.New())
@@ -283,16 +180,16 @@ func (s *Socket) On(event EventName, callback OnEventCallback) CallbackId {
 	return id
 }
 
-// Once registers a callback that is triggered only the first time event is received.
-func (s *Socket) Once(event EventName, callback OnEventCallback) CallbackId {
+// Once registers a callback that is triggered only the first time the event is received.
+func (s *Socket) Once(event EventName, callback EventCallback) CallbackId {
 	if s.eventListeners[event] == nil {
-		s.eventListeners[event] = make(map[CallbackId]OnEventCallback)
+		s.eventListeners[event] = make(map[CallbackId]EventCallback)
 	}
 
 	id := CallbackId(uuid.New())
 
-	s.eventListeners[event][id] = func(origin string, event Event) {
-		callback(origin, event)
+	s.eventListeners[event][id] = func(event Event) {
+		callback(event)
 		s.RemoveCallback(id)
 	}
 
@@ -306,48 +203,33 @@ func (s *Socket) RemoveCallback(id CallbackId) {
 	}
 }
 
-// Send sends a new event to the server.
-func (s *Socket) Send(eventName EventName, eventData any) error {
-	event := Event{
-		Name: eventName,
+// Send sends a new command to the server.
+// Send panics if the socket is not connected to a player.
+func (s *Socket) Send(name CommandName, data any) error {
+	if s.wsConn == nil || s.session.PlayerId == "" {
+		panic("not connected to a player")
 	}
 
-	if eventData == nil {
-		eventData = struct{}{}
+	cmd := Command{
+		Name: name,
 	}
 
-	err := event.marshalData(eventData)
+	if data == nil {
+		data = struct{}{}
+	}
+
+	err := cmd.marshalData(data)
 	if err != nil {
 		return err
 	}
 
-	jsonData, err := json.Marshal(event)
+	jsonData, err := json.Marshal(cmd)
 	if err != nil {
 		return err
 	}
 
 	s.wsConn.WriteMessage(websocket.TextMessage, jsonData)
 	return nil
-}
-
-// Leave sends a leave_game event to the server and clears all non-standard event listeners.
-// It also deletes the current session.
-func (s *Socket) Leave() error {
-	for key := range s.eventListeners {
-		if !IsStandardEvent(key) {
-			delete(s.eventListeners, key)
-		}
-	}
-
-	for key := range s.usernameCache {
-		delete(s.usernameCache, key)
-	}
-
-	s.session.remove()
-
-	s.running = false
-
-	return s.Send(LeaveEvent, nil)
 }
 
 // Close closes the underlying websocket connection.
@@ -357,9 +239,17 @@ func (s *Socket) Close() error {
 	return s.wsConn.Close()
 }
 
-// ResolveUsername returns the username associated with playerId.
-func (s *Socket) ResolveUsername(playerId string) string {
-	return s.usernameCache[playerId]
+// Username returns the username associated with playerId.
+func (s *Socket) Username(playerId string) string {
+	if username, ok := s.usernameCache[playerId]; ok {
+		return username
+	}
+
+	username, err := s.fetchUsername(s.session.GameId, playerId)
+	if err == nil {
+		s.usernameCache[playerId] = username
+	}
+	return username
 }
 
 // Session returns details of the current session.
@@ -367,36 +257,11 @@ func (s *Socket) Session() Session {
 	return s.session
 }
 
-// sendEventAndWaitForResponse sends event with eventData and waits until it receives expectedReponse.
-// sendEventAndWaitForResponse returns the response event.
-// Registered event listeners will be triggered.
-func (s *Socket) sendEventAndWaitForResponse(event EventName, eventData any, expectedReponse EventName) (EventWrapper, error) {
-	s.Send(event, eventData)
-
-	for {
-		wrapper, err := s.receiveEvent()
-		if err != nil {
-			return EventWrapper{}, err
-		}
-		s.triggerEventListeners(wrapper.Origin, wrapper.Event)
-
-		if wrapper.Event.Name == expectedReponse {
-			return wrapper, nil
-		}
-
-		if wrapper.Event.Name == ErrorEvent {
-			var data ErrorEventData
-			wrapper.Event.UnmarshalData(&data)
-			return EventWrapper{}, errors.New(data.Message)
-		}
-	}
-}
-
 func (s *Socket) startListenLoop() {
 	s.running = true
 	go func() {
 		for s.running {
-			wrapper, err := s.receiveEvent()
+			event, err := s.receiveEvent()
 			if err != nil {
 				if websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseNoStatusReceived, websocket.CloseGoingAway) {
 					s.err = ErrClosed
@@ -404,63 +269,40 @@ func (s *Socket) startListenLoop() {
 					s.err = err
 				}
 				s.running = false
-				close(s.eventWrapperChan)
-			} else {
-				s.eventWrapperChan <- wrapper
+				close(s.eventChan)
+				continue
 			}
+			s.eventChan <- event
 		}
 	}()
 }
 
-func (s *Socket) receiveEvent() (EventWrapper, error) {
+func (s *Socket) receiveEvent() (Event, error) {
 	msgType, msg, err := s.wsConn.ReadMessage()
 	if err != nil {
-		return EventWrapper{}, err
+		return Event{}, err
 	}
 	if msgType != websocket.TextMessage {
-		return EventWrapper{}, ErrInvalidMessageType
+		return Event{}, ErrInvalidMessageType
 	}
 
-	var wrapper EventWrapper
-	err = json.Unmarshal(msg, &wrapper)
+	var event Event
+	err = json.Unmarshal(msg, &event)
 	if err != nil {
-		return EventWrapper{}, ErrDecodeFailed
+		return Event{}, ErrDecodeFailed
 	}
-	if wrapper.Event.Name == "" {
-		return EventWrapper{}, ErrDecodeFailed
+	if event.Name == "" {
+		return Event{}, ErrDecodeFailed
 	}
 
-	return wrapper, nil
+	return event, nil
 }
 
-func (s *Socket) triggerEventListeners(origin string, event Event) {
-	if s.eventListeners[event.Name] != nil {
-		for _, cb := range s.eventListeners[event.Name] {
-			cb(origin, event)
-		}
-	}
-}
-
-func (s *Socket) cacheUser(playerId, username string) {
-	s.usernameCache[playerId] = username
-}
-
-func (s *Socket) uncacheUser(playerId string) {
-	delete(s.usernameCache, playerId)
-}
-
-func (s *Socket) baseURL(websocket bool) string {
-	if websocket {
-		if s.ssl {
-			return "wss://" + s.url
-		} else {
-			return "ws://" + s.url
-		}
-	} else {
-		if s.ssl {
-			return "https://" + s.url
-		} else {
-			return "http://" + s.url
+func (s *Socket) triggerEventListeners(event Event) {
+	listeners := s.eventListeners[event.Name]
+	if listeners != nil {
+		for _, cb := range listeners {
+			cb(event)
 		}
 	}
 }
