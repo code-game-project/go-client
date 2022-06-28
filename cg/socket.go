@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Bananenpro/cli"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -53,7 +52,7 @@ func NewSocket(url string) (*Socket, error) {
 	socket.info = info
 
 	if !isVersionCompatible(info.CGVersion) {
-		cli.Warn("CodeGame version mismatch. Server: v%s, client: v%s", info.CGVersion, CGVersion)
+		printWarning("CodeGame version mismatch. Server: v%s, client: v%s", info.CGVersion, CGVersion)
 	}
 
 	return socket, nil
@@ -117,7 +116,7 @@ func (s *Socket) Connect(gameId, playerId, secret string) error {
 	s.session.Username = username
 	err = s.session.save()
 	if err != nil {
-		cli.Error("Failed to save session:", err)
+		printError("Failed to save session: %s", err)
 	}
 
 	return nil
