@@ -36,10 +36,10 @@ func isTLS(trimmedURL string) bool {
 	}
 	host := url.Host
 	if url.Port() == "" {
-		host = host + ":443"
+		host += ":443"
 	}
 
-	conn, err := tls.Dial("tcp", url.Host, &tls.Config{})
+	conn, err := tls.Dial("tcp", host, &tls.Config{})
 	if err != nil {
 		return false
 	}
@@ -47,11 +47,13 @@ func isTLS(trimmedURL string) bool {
 
 	err = conn.VerifyHostname(url.Hostname())
 	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 
 	expiry := conn.ConnectionState().PeerCertificates[0].NotAfter
 	if time.Now().After(expiry) {
+		fmt.Println(err)
 		return false
 	}
 
