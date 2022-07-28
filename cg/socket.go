@@ -70,12 +70,12 @@ func (s *Socket) Join(gameId, username string) error {
 		panic("already connected to a game")
 	}
 
-	playerId, secret, err := s.createPlayer(gameId, username)
+	playerId, playerSecret, err := s.createPlayer(gameId, username)
 	if err != nil {
 		return err
 	}
 
-	return s.Connect(gameId, playerId, secret)
+	return s.Connect(gameId, playerId, playerSecret)
 }
 
 // RestoreSession tries to restore the session and use it to reconnect to the game.
@@ -88,7 +88,7 @@ func (s *Socket) RestoreSession(username string) error {
 	if err != nil {
 		return err
 	}
-	err = s.Connect(session.GameId, session.PlayerId, session.Secret)
+	err = s.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
 	if err != nil {
 		session.remove()
 	}
@@ -97,13 +97,13 @@ func (s *Socket) RestoreSession(username string) error {
 
 // Connect connects to a game and player on the server.
 // Connect panics if the socket is already connected to a game.
-func (s *Socket) Connect(gameId, playerId, secret string) error {
-	err := s.connect(gameId, playerId, secret)
+func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
+	err := s.connect(gameId, playerId, playerSecret)
 	if err != nil {
 		return err
 	}
 
-	s.session = newSession(s.info.Name, "", gameId, playerId, secret)
+	s.session = newSession(s.info.Name, "", gameId, playerId, playerSecret)
 
 	s.startListenLoop()
 

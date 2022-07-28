@@ -93,16 +93,16 @@ func (s *Socket) createPlayer(gameId, username string) (string, string, error) {
 	}
 
 	type response struct {
-		PlayerId string `json:"player_id"`
-		Secret   string `json:"secret"`
+		PlayerId     string `json:"player_id"`
+		PlayerSecret string `json:"player_secret"`
 	}
 	var r response
 	err = json.NewDecoder(resp.Body).Decode(&r)
-	return r.PlayerId, r.Secret, err
+	return r.PlayerId, r.PlayerSecret, err
 }
 
-func (s *Socket) connect(gameId, playerId, secret string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/connect?player_id=%s&secret=%s", s.url, gameId, playerId, secret), nil)
+func (s *Socket) connect(gameId, playerId, playerSecret string) error {
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/connect?player_id=%s&player_secret=%s", s.url, gameId, playerId, playerSecret), nil)
 	if err != nil {
 		return err
 	}
