@@ -1,5 +1,5 @@
 # Go-Client
-![CG Version](https://img.shields.io/badge/Protocol-v0.7-orange)
+![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.7-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 This is the Go client library for [CodeGame](https://code-game.org).
@@ -82,7 +82,7 @@ func main() {
 
 MIT License
 
-Copyright (c) 2022 CodeGame Contributors (https://code-game.org/contributors)
+Copyright (c) 2022 Julian Hofmann
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -51,6 +51,10 @@ func NewDebugSocket(url string) *DebugSocket {
 	}
 }
 
+func (s *DebugSocket) URL() string {
+	return s.url
+}
+
 // SetSeverities enables/disables specific message severities.
 // SetSeverities panics if it is called after calling DebugServer, DebugGame or DebugPlayer.
 // When SetSeverities is never called all severities except trace are enabled.
