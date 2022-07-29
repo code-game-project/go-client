@@ -3,6 +3,7 @@ package cg
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -10,7 +11,7 @@ import (
 )
 
 type Session struct {
-	Name         string `json:"-"`
+	GameURL      string `json:"-"`
 	Username     string `json:"-"`
 	GameId       string `json:"game_id"`
 	PlayerId     string `json:"player_id"`
@@ -20,9 +21,9 @@ type Session struct {
 
 var gamesPath = filepath.Join(xdg.DataHome, "codegame", "games")
 
-func newSession(name, username, gameId, playerId, playerSecret string) Session {
+func newSession(gameURL, username, gameId, playerId, playerSecret string) Session {
 	return Session{
-		Name:         name,
+		GameURL:      gameURL,
 		Username:     username,
 		GameId:       gameId,
 		PlayerId:     playerId,
@@ -30,8 +31,8 @@ func newSession(name, username, gameId, playerId, playerSecret string) Session {
 	}
 }
 
-func loadSession(name, username string) (Session, error) {
-	data, err := os.ReadFile(filepath.Join(gamesPath, name, username+".json"))
+func loadSession(gameURL, username string) (Session, error) {
+	data, err := os.ReadFile(filepath.Join(gamesPath, url.PathEscape(gameURL), username+".json"))
 	if err != nil {
 		return Session{}, err
 	}
@@ -39,17 +40,17 @@ func loadSession(name, username string) (Session, error) {
 	var session Session
 	err = json.Unmarshal(data, &session)
 
-	session.Name = name
+	session.GameURL = gameURL
 	session.Username = username
 
 	return session, err
 }
 
 func (s Session) save() error {
-	if s.Name == "" {
-		return errors.New("empty name")
+	if s.GameURL == "" {
+		return errors.New("empty game url")
 	}
-	dir := filepath.Join(gamesPath, s.Name)
+	dir := filepath.Join(gamesPath, url.PathEscape(s.GameURL))
 	err := os.MkdirAll(dir, 0755)
 	if err != nil {
 		return err
@@ -64,8 +65,8 @@ func (s Session) save() error {
 }
 
 func (s Session) remove() error {
-	if s.Name == "" {
+	if s.GameURL == "" {
 		return nil
 	}
-	return os.Remove(filepath.Join(gamesPath, s.Name, s.Username+".json"))
+	return os.Remove(filepath.Join(gamesPath, url.PathEscape(s.GameURL), s.Username+".json"))
 }
