@@ -43,12 +43,14 @@ func (s *Socket) fetchInfo() (cgInfo, error) {
 	return info, err
 }
 
-func (s *Socket) createGame(public bool) (string, error) {
+func (s *Socket) createGame(public bool, config any) (string, error) {
 	type request struct {
 		Public bool `json:"public"`
+		Config any  `json:"config,omitempty"`
 	}
 	data, err := json.Marshal(request{
 		Public: public,
+		Config: config,
 	})
 	if err != nil {
 		return "", err

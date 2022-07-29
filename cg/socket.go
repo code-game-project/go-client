@@ -59,8 +59,8 @@ func NewSocket(url string) (*Socket, error) {
 }
 
 // CreateGame creates a new game on the server and returns the id of the created game.
-func (s *Socket) CreateGame(public bool) (string, error) {
-	return s.createGame(public)
+func (s *Socket) CreateGame(public bool, config any) (string, error) {
+	return s.createGame(public, config)
 }
 
 // Join creates a new player in the game and connects to it.
