@@ -68,5 +68,15 @@ func (s Session) remove() error {
 	if s.GameURL == "" {
 		return nil
 	}
-	return os.Remove(filepath.Join(gamesPath, url.PathEscape(s.GameURL), s.Username+".json"))
+	dir := filepath.Join(gamesPath, url.PathEscape(s.GameURL))
+	err := os.Remove(filepath.Join(dir, s.Username+".json"))
+	if err != nil {
+		return err
+	}
+
+	dirs, err := os.ReadDir(dir)
+	if err == nil && len(dirs) == 0 {
+		os.Remove(dir)
+	}
+	return nil
 }
