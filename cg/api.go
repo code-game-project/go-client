@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -26,6 +27,10 @@ func (s *Socket) fetchInfo() (cgInfo, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		data, err := io.ReadAll(resp.Body)
+		if err == nil && len(data) > 0 {
+			return cgInfo{}, fmt.Errorf("Failed to fetch game info: %s", string(data))
+		}
 		return cgInfo{}, fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
 	}
 
@@ -91,6 +96,10 @@ func (s *Socket) createPlayer(gameId, username string) (string, string, error) {
 		return "", "", err
 	}
 	if resp.StatusCode != http.StatusCreated {
+		data, err := io.ReadAll(resp.Body)
+		if err == nil && len(data) > 0 {
+			return "", "", errors.New(string(data))
+		}
 		return "", "", fmt.Errorf("invalid response code: expected: %d, got: %d", http.StatusCreated, resp.StatusCode)
 	}
 
@@ -128,6 +137,10 @@ func (s *Socket) fetchUsername(gameId, playerId string) (string, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		data, err := io.ReadAll(resp.Body)
+		if err == nil && len(data) > 0 {
+			return "", fmt.Errorf("Failed to fetch username of %s: %s", playerId, string(data))
+		}
 		return "", fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
 	}
 
