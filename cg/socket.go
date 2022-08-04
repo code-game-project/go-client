@@ -335,5 +335,5 @@ func isVersionCompatible(serverVersion string) bool {
 		return false
 	}
 
-	return clientMinor >= serverMinor
+	return clientMinor <= serverMinor
 }
