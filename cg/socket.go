@@ -58,19 +58,20 @@ func NewSocket(url string) (*Socket, error) {
 	return socket, nil
 }
 
-// CreateGame creates a new game on the server and returns the id of the created game.
-func (s *Socket) CreateGame(public bool, config any) (string, error) {
-	return s.createGame(public, config)
+// CreateGame creates a new game on the server and returns the id of the created game and the join secret if protected == true.
+func (s *Socket) CreateGame(public, protected bool, config any) (gameId, joinSecret string, err error) {
+	return s.createGame(public, protected, config)
 }
 
 // Join creates a new player in the game and connects to it.
 // Join panics if the socket is already connected to a game.
-func (s *Socket) Join(gameId, username string) error {
+// Leave joinSecret empty if the game is not protected.
+func (s *Socket) Join(gameId, username, joinSecret string) error {
 	if s.session.GameURL != "" {
 		panic("already connected to a game")
 	}
 
-	playerId, playerSecret, err := s.createPlayer(gameId, username)
+	playerId, playerSecret, err := s.createPlayer(gameId, username, joinSecret)
 	if err != nil {
 		return err
 	}

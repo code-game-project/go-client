@@ -48,43 +48,48 @@ func (s *Socket) fetchInfo() (cgInfo, error) {
 	return info, err
 }
 
-func (s *Socket) createGame(public bool, config any) (string, error) {
+func (s *Socket) createGame(public, protected bool, config any) (gameId string, joinSecret string, err error) {
 	type request struct {
-		Public bool `json:"public"`
-		Config any  `json:"config,omitempty"`
+		Public    bool `json:"public"`
+		Protected bool `json:"protected"`
+		Config    any  `json:"config,omitempty"`
 	}
 	data, err := json.Marshal(request{
-		Public: public,
-		Config: config,
+		Public:    public,
+		Protected: protected,
+		Config:    config,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	body := bytes.NewBuffer(data)
 	resp, err := http.Post(baseURL("http", s.tls, "%s/api/games", s.url), "application/json", body)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated {
-		return "", fmt.Errorf("invalid response code: expected: %d, got: %d", http.StatusCreated, resp.StatusCode)
+		return "", "", fmt.Errorf("invalid response code: expected: %d, got: %d", http.StatusCreated, resp.StatusCode)
 	}
 
 	type response struct {
-		GameId string `json:"game_id"`
+		GameId     string `json:"game_id"`
+		JoinSecret string `json:"join_secret"`
 	}
 	var r response
 	err = json.NewDecoder(resp.Body).Decode(&r)
-	return r.GameId, err
+	return r.GameId, r.JoinSecret, err
 }
 
-func (s *Socket) createPlayer(gameId, username string) (string, string, error) {
+func (s *Socket) createPlayer(gameId, username, joinSecret string) (string, string, error) {
 	type request struct {
-		Username string `json:"username"`
+		Username   string `json:"username"`
+		JoinSecret string `json:"join_secret,omitempty"`
 	}
 	data, err := json.Marshal(request{
-		Username: username,
+		Username:   username,
+		JoinSecret: joinSecret,
 	})
 	if err != nil {
 		return "", "", err
