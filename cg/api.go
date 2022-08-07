@@ -175,3 +175,28 @@ func (s *Socket) fetchPlayers(gameId string) (map[string]string, error) {
 	err = json.NewDecoder(resp.Body).Decode(&r)
 	return r, err
 }
+
+type configReponse[T any] struct {
+	Config T `json:"config"`
+}
+
+// FetchGameConfig fetches the game config from the server.
+func FetchGameConfig[T any](socket *Socket, gameId string) (T, error) {
+	var config T
+	resp, err := http.Get(baseURL("http", socket.tls, "%s/api/games/%s", socket.url, gameId))
+	if err != nil {
+		return config, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, err := io.ReadAll(resp.Body)
+		if err == nil && len(data) > 0 {
+			return config, fmt.Errorf("Failed to fetch game config: %s", string(data))
+		}
+		return config, fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var r configReponse[T]
+	err = json.NewDecoder(resp.Body).Decode(&r)
+	return r.Config, err
+}
