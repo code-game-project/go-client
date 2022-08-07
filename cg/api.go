@@ -156,3 +156,22 @@ func (s *Socket) fetchUsername(gameId, playerId string) (string, error) {
 	err = json.NewDecoder(resp.Body).Decode(&r)
 	return r.Username, err
 }
+
+func (s *Socket) fetchPlayers(gameId string) (map[string]string, error) {
+	resp, err := http.Get(baseURL("http", s.tls, "%s/api/games/%s/players", s.url, gameId))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		data, err := io.ReadAll(resp.Body)
+		if err == nil && len(data) > 0 {
+			return nil, fmt.Errorf("Failed to fetch players: %s", string(data))
+		}
+		return nil, fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var r map[string]string
+	err = json.NewDecoder(resp.Body).Decode(&r)
+	return r, err
+}

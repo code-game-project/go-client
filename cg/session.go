@@ -51,7 +51,7 @@ func (s Session) save() error {
 		return errors.New("empty game url")
 	}
 	dir := filepath.Join(gamesPath, url.PathEscape(s.GameURL))
-	err := os.MkdirAll(dir, 0755)
+	err := os.MkdirAll(dir, 0o755)
 	if err != nil {
 		return err
 	}
@@ -61,7 +61,7 @@ func (s Session) save() error {
 		return err
 	}
 
-	return os.WriteFile(filepath.Join(dir, s.Username+".json"), data, 0644)
+	return os.WriteFile(filepath.Join(dir, s.Username+".json"), data, 0o644)
 }
 
 func (s Session) remove() error {

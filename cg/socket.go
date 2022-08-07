@@ -108,13 +108,12 @@ func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
 
 	s.startListenLoop()
 
-	username, err := s.fetchUsername(gameId, playerId)
+	s.usernameCache, err = s.fetchPlayers(gameId)
 	if err != nil {
 		return err
 	}
-	s.usernameCache[playerId] = username
 
-	s.session.Username = username
+	s.session.Username = s.usernameCache[playerId]
 	err = s.session.save()
 	if err != nil {
 		printError("Failed to save session: %s", err)
@@ -131,7 +130,14 @@ func (s *Socket) Spectate(gameId string) error {
 		return err
 	}
 	s.session = newSession(s.url, "", gameId, "", "")
+
 	s.startListenLoop()
+
+	s.usernameCache, err = s.fetchPlayers(gameId)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
