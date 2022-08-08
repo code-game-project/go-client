@@ -10,8 +10,6 @@ This is the Go client library for [CodeGame](https://code-game.org).
 go get github.com/code-game-project/go-client/cg
 ```
 
-## [Getting Started](./docs/GETTING_STARTED.md)
-
 ## Usage
 
 ```go
@@ -25,29 +23,25 @@ import (
 )
 
 func main() {
-	// Open a websocket connection with CodeGame server.
+	// Create a game socket.
 	socket, err := cg.NewSocket("localhost:8080")
 	if err != nil {
 		log.Fatalf("failed to connect to server: %s", err)
 	}
 
-	// Try to connect with a previous session.
-	err = socket.RestoreSession("username")
-	if err != nil {
-		// Create a new public game and store its id in 'gameId'.
-		gameId, err := socket.Create(true)
-		if err != nil {
-			log.Fatalf("failed to create game: %s", err)
-		}
+	// Create a new game on the server.
+	socket.CreateGame(public, protected, config)
 
-		// Join the previously created game.
-		err = socket.Join(gameId, "username")
-		if err != nil {
-			log.Fatalf("failed to join game: %s", err)
-		}
-	}
+	// Join an existing game.
+	socket.Join(gameId)
 
-	// TODO: register event handlers with `socket.On(...)`
+	// Spectate a game.
+	socket.Spectate(gameId)
+
+	// Connect with an existing session.
+	socket.RestoreSession(username)
+
+	// TODO: register event handlers with `socket.On(...)` and send commands with `socket.Send(...)`
 
 	// Start listening for events. Blocks until the connection is closed.
 	err = socket.RunEventLoop()
