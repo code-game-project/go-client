@@ -2,7 +2,7 @@
 ![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.7-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
-This is the Go client library for [CodeGame](https://code-game.org).
+The Go client library for [CodeGame](https://code-game.org).
 
 ## Installation
 
