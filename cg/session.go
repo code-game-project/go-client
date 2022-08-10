@@ -16,7 +16,6 @@ type Session struct {
 	GameId       string `json:"game_id"`
 	PlayerId     string `json:"player_id"`
 	PlayerSecret string `json:"player_secret"`
-	Path         string `json:"-"`
 }
 
 var gamesPath = filepath.Join(xdg.DataHome, "codegame", "games")
