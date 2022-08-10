@@ -99,6 +99,9 @@ func (s *Socket) RestoreSession(username string) error {
 // Connect connects to a game and player on the server.
 // Connect panics if the socket is already connected to a game.
 func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
+	if s.session.GameURL != "" {
+		panic("already connected to a game")
+	}
 	err := s.connect(gameId, playerId, playerSecret)
 	if err != nil {
 		return err
@@ -125,6 +128,9 @@ func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
 // Spectate joins the game as a spectator.
 // Spectate panics if the socket is already connected to a game.
 func (s *Socket) Spectate(gameId string) error {
+	if s.session.GameURL != "" {
+		panic("already connected to a game")
+	}
 	err := s.spectate(gameId)
 	if err != nil {
 		return err

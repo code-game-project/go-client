@@ -73,8 +73,8 @@ func (s Session) remove() error {
 		return err
 	}
 
-	dirs, err := os.ReadDir(dir)
-	if err == nil && len(dirs) == 0 {
+	files, err := os.ReadDir(dir)
+	if err == nil && len(files) == 0 {
 		os.Remove(dir)
 	}
 	return nil
