@@ -13,61 +13,55 @@ go get github.com/code-game-project/go-client/cg
 ## Usage
 
 ```go
-package main
+// Create a new game socket.
+socket, err := cg.NewSocket("games.code-game.org/example")
 
-import (
-	"log"
+// Create a new private and unprotected game on the server.
+socket.CreateGame(false, false, nil)
 
-	// Import CodeGame client library.
-	"github.com/code-game-project/go-client/cg"
-)
+// Join a game.
+socket.Join(gameId, "username", "")
 
-func main() {
-	// Create a game socket.
-	socket, err := cg.NewSocket("localhost:8080")
+// Spectate a game.
+socket.Spectate(gameId)
+
+// Connect with an existing session.
+socket.RestoreSession(username)
+
+// Register an event listener for the `my_event` event.
+socket.On(MyEventEvent, func(event cg.Event) {
+	// TODO: do something with event
+})
+
+// Send a `hello_world` command.
+socket.Send(HelloWorldCmd, HelloWorldCmdData{
+	Message: "Hello, World!",
+})
+
+// Start listening for events. Blocks until the connection is closed.
+err = socket.RunEventLoop()
+if err != nil {
+	log.Fatalf("error: %s", err)
+}
+
+// ======= ALTERNATIVELY =======
+
+// manual event loop
+for {
+	// NextEvent returns the next event in the queue or ok = false if there is none.
+	// Registered event listeners will be triggered.
+	// event -> The polled event. Only valid if ok == true.
+	// ok -> Whether there was an event in the queue
+	// err -> cg.ErrClosed if closed.
+	event, ok, err := socket.NextEvent()
 	if err != nil {
-		log.Fatalf("failed to connect to server: %s", err)
-	}
-
-	// Create a new game on the server.
-	socket.CreateGame(public, protected, config)
-
-	// Join an existing game.
-	socket.Join(gameId)
-
-	// Spectate a game.
-	socket.Spectate(gameId)
-
-	// Connect with an existing session.
-	socket.RestoreSession(username)
-
-	// TODO: register event handlers with `socket.On(...)` and send commands with `socket.Send(...)`
-
-	// Start listening for events. Blocks until the connection is closed.
-	err = socket.RunEventLoop()
-	if err != nil {
-		log.Fatalf("error: %s", err)
-	}
-
-	// ======= ALTERNATIVELY =======
-
-	// manual event loop
-	for {
-		// NextEvent returns the next event in the queue or ok = false if there is none.
-		// Registered event listeners will be triggered.
-		// event -> The polled event. Only valid if ok == true.
-		// ok -> Whether there was an event in the queue
-		// err -> cg.ErrClosed if closed.
-		event, ok, err := socket.NextEvent()
-		if err != nil {
-			if err != cg.ErrClosed {
-				log.Fatalf("error: %s", err)
-			}
-			break
+		if err != cg.ErrClosed {
+			log.Fatalf("error: %s", err)
 		}
-		if ok {
-			// do something with event
-		}
+		break
+	}
+	if ok {
+		// do something with event
 	}
 }
 ```
