@@ -3,4 +3,4 @@ Package cg implements common client logic for connecting with a CodeGame server 
 */
 package cg
 
-const CGVersion = "0.7"
+const CGVersion = "0.8"

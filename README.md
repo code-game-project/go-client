@@ -1,5 +1,5 @@
 # Go-Client
-![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.7-orange)
+![CodeGame Version](https://img.shields.io/badge/CodeGame-v0.8-orange)
 ![Go version](https://img.shields.io/github/go-mod/go-version/code-game-project/go-client)
 
 The Go client library for [CodeGame](https://code-game.org).
