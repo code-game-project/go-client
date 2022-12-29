@@ -118,9 +118,7 @@ func (s *Socket) createPlayer(gameId, username, joinSecret string) (string, stri
 }
 
 func (s *Socket) connect(gameId, playerId, playerSecret string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/connect", s.url, gameId, playerId), http.Header{
-		"CG-Player-Secret": {playerSecret},
-	})
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/connect?player_secret=%s", s.url, gameId, playerId, playerSecret), nil)
 	if err != nil {
 		return err
 	}

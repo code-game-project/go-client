@@ -2,7 +2,6 @@ package cg
 
 import (
 	"encoding/json"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -105,9 +104,7 @@ func (s *DebugSocket) DebugGame(gameId string) error {
 
 // DebugPlayer connects to the /api/games/{gameId}/players/{playerId}/debug endpoint on the server and listens for debug messages.
 func (s *DebugSocket) DebugPlayer(gameId, playerId, playerSecret string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/debug?trace=%t&info=%t&warning=%t&error=%t", s.url, gameId, playerId, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), http.Header{
-		"CG-Player-Secret": {playerSecret},
-	})
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/debug?player_secret=%s&trace=%t&info=%t&warning=%t&error=%t", s.url, gameId, playerId, playerSecret, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), nil)
 	if err != nil {
 		return err
 	}
