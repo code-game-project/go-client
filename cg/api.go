@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type cgInfo struct {
+type CGInfo struct {
 	Name          string `json:"name"`
 	CGVersion     string `json:"cg_version"`
 	DisplayName   string `json:"display_name"`
@@ -20,30 +20,30 @@ type cgInfo struct {
 	RepositoryURL string `json:"repository_url"`
 }
 
-func (s *Socket) fetchInfo() (cgInfo, error) {
+func (s *Socket) fetchInfo() (CGInfo, error) {
 	resp, err := http.Get(baseURL("http", s.tls, "%s/api/info", s.url))
 	if err != nil {
-		return cgInfo{}, err
+		return CGInfo{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		data, err := io.ReadAll(resp.Body)
 		if err == nil && len(data) > 0 {
-			return cgInfo{}, fmt.Errorf("Failed to fetch game info: %s", string(data))
+			return CGInfo{}, fmt.Errorf("Failed to fetch game info: %s", string(data))
 		}
-		return cgInfo{}, fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
+		return CGInfo{}, fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
 	}
 
-	var info cgInfo
+	var info CGInfo
 	err = json.NewDecoder(resp.Body).Decode(&info)
 	if err != nil {
-		return cgInfo{}, err
+		return CGInfo{}, err
 	}
 	if info.Name == "" {
-		return cgInfo{}, errors.New("empty `name` field")
+		return CGInfo{}, errors.New("empty `name` field")
 	}
 	if info.CGVersion == "" {
-		return cgInfo{}, errors.New("empty `cg_version` field")
+		return CGInfo{}, errors.New("empty `cg_version` field")
 	}
 	return info, err
 }

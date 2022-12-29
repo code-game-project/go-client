@@ -20,7 +20,7 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
-	info           cgInfo
+	info           CGInfo
 	url            string
 	tls            bool
 	session        Session
@@ -267,6 +267,11 @@ func (s *Socket) Username(playerId string) string {
 // Session returns details of the current session.
 func (s *Socket) Session() Session {
 	return s.session
+}
+
+// Info returns information about the connected game.
+func (s *Socket) Info() CGInfo {
+	return s.info
 }
 
 func (s *Socket) startListenLoop() {
