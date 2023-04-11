@@ -9,11 +9,11 @@ require github.com/gorilla/websocket v1.5.0
 require (
 	github.com/adrg/xdg v0.4.0
 	github.com/google/uuid v1.3.0
-	github.com/mattn/go-colorable v0.1.12
+	github.com/mattn/go-colorable v0.1.13
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/mattn/go-isatty v0.0.14 // indirect
-	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
+	github.com/mattn/go-isatty v0.0.18 // indirect
+	golang.org/x/sys v0.7.0 // indirect
 )

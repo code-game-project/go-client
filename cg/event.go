@@ -6,8 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type CallbackId uuid.UUID
-type EventCallback func(event Event)
+type (
+	CallbackID    uuid.UUID
+	EventCallback func(event Event)
+)
 
 type EventName string
 

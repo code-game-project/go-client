@@ -28,7 +28,7 @@ type DebugMessageCallback func(severity DebugSeverity, message string, data stri
 
 type DebugSocket struct {
 	wsConn    *websocket.Conn
-	callbacks map[CallbackId]DebugMessageCallback
+	callbacks map[CallbackID]DebugMessageCallback
 	url       string
 	tls       bool
 
@@ -41,7 +41,7 @@ type DebugSocket struct {
 func NewDebugSocket(url string) *DebugSocket {
 	url = trimURL(url)
 	return &DebugSocket{
-		callbacks:     make(map[CallbackId]DebugMessageCallback),
+		callbacks:     make(map[CallbackID]DebugMessageCallback),
 		url:           url,
 		tls:           isTLS(url),
 		enableTrace:   false,
@@ -68,13 +68,13 @@ func (s *DebugSocket) SetSeverities(enableTrace, enableInfo, enableWarning, enab
 	s.enableError = enableError
 }
 
-func (s *DebugSocket) OnMessage(callback DebugMessageCallback) CallbackId {
-	id := CallbackId(uuid.New())
+func (s *DebugSocket) OnMessage(callback DebugMessageCallback) CallbackID {
+	id := CallbackID(uuid.New())
 	s.callbacks[id] = callback
 	return id
 }
 
-func (s *DebugSocket) RemoveCallback(id CallbackId) {
+func (s *DebugSocket) RemoveCallback(id CallbackID) {
 	delete(s.callbacks, id)
 }
 
@@ -91,8 +91,8 @@ func (s *DebugSocket) DebugServer() error {
 }
 
 // DebugGame connects to the /api/games/{gameId}/debug endpoint on the server and listens for debug messages.
-func (s *DebugSocket) DebugGame(gameId string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/debug?trace=%t&info=%t&warning=%t&error=%t", s.url, gameId, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), nil)
+func (s *DebugSocket) DebugGame(gameID string) error {
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/debug?trace=%t&info=%t&warning=%t&error=%t", s.url, gameID, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), nil)
 	if err != nil {
 		return err
 	}
@@ -103,8 +103,8 @@ func (s *DebugSocket) DebugGame(gameId string) error {
 }
 
 // DebugPlayer connects to the /api/games/{gameId}/players/{playerId}/debug endpoint on the server and listens for debug messages.
-func (s *DebugSocket) DebugPlayer(gameId, playerId, playerSecret string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/debug?player_secret=%s&trace=%t&info=%t&warning=%t&error=%t", s.url, gameId, playerId, playerSecret, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), nil)
+func (s *DebugSocket) DebugPlayer(gameID, playerID, playerSecret string) error {
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/debug?player_secret=%s&trace=%t&info=%t&warning=%t&error=%t", s.url, gameID, playerID, playerSecret, s.enableTrace, s.enableInfo, s.enableWarning, s.enableError), nil)
 	if err != nil {
 		return err
 	}

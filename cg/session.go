@@ -13,19 +13,19 @@ import (
 type Session struct {
 	GameURL      string `json:"-"`
 	Username     string `json:"-"`
-	GameId       string `json:"game_id"`
-	PlayerId     string `json:"player_id"`
+	GameID       string `json:"game_id"`
+	PlayerID     string `json:"player_id"`
 	PlayerSecret string `json:"player_secret"`
 }
 
 var gamesPath = filepath.Join(xdg.DataHome, "codegame", "games")
 
-func newSession(gameURL, username, gameId, playerId, playerSecret string) Session {
+func newSession(gameURL, username, gameID, playerID, playerSecret string) Session {
 	return Session{
 		GameURL:      gameURL,
 		Username:     username,
-		GameId:       gameId,
-		PlayerId:     playerId,
+		GameID:       gameID,
+		PlayerID:     playerID,
 		PlayerSecret: playerSecret,
 	}
 }

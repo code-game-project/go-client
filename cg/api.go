@@ -48,7 +48,7 @@ func (s *Socket) fetchInfo() (CGInfo, error) {
 	return info, err
 }
 
-func (s *Socket) createGame(public, protected bool, config any) (gameId string, joinSecret string, err error) {
+func (s *Socket) createGame(public, protected bool, config any) (gameID string, joinSecret string, err error) {
 	type request struct {
 		Public    bool `json:"public"`
 		Protected bool `json:"protected"`
@@ -74,15 +74,15 @@ func (s *Socket) createGame(public, protected bool, config any) (gameId string, 
 	}
 
 	type response struct {
-		GameId     string `json:"game_id"`
+		GameID     string `json:"game_id"`
 		JoinSecret string `json:"join_secret"`
 	}
 	var r response
 	err = json.NewDecoder(resp.Body).Decode(&r)
-	return r.GameId, r.JoinSecret, err
+	return r.GameID, r.JoinSecret, err
 }
 
-func (s *Socket) createPlayer(gameId, username, joinSecret string) (string, string, error) {
+func (s *Socket) createPlayer(gameID, username, joinSecret string) (string, string, error) {
 	type request struct {
 		Username   string `json:"username"`
 		JoinSecret string `json:"join_secret,omitempty"`
@@ -96,7 +96,7 @@ func (s *Socket) createPlayer(gameId, username, joinSecret string) (string, stri
 	}
 
 	body := bytes.NewBuffer(data)
-	resp, err := http.Post(baseURL("http", s.tls, "%s/api/games/%s/players", s.url, gameId), "application/json", body)
+	resp, err := http.Post(baseURL("http", s.tls, "%s/api/games/%s/players", s.url, gameID), "application/json", body)
 	if err != nil {
 		return "", "", err
 	}
@@ -109,16 +109,16 @@ func (s *Socket) createPlayer(gameId, username, joinSecret string) (string, stri
 	}
 
 	type response struct {
-		PlayerId     string `json:"player_id"`
+		PlayerID     string `json:"player_id"`
 		PlayerSecret string `json:"player_secret"`
 	}
 	var r response
 	err = json.NewDecoder(resp.Body).Decode(&r)
-	return r.PlayerId, r.PlayerSecret, err
+	return r.PlayerID, r.PlayerSecret, err
 }
 
-func (s *Socket) connect(gameId, playerId, playerSecret string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/connect?player_secret=%s", s.url, gameId, playerId, playerSecret), nil)
+func (s *Socket) connect(gameID, playerID, playerSecret string) error {
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/players/%s/connect?player_secret=%s", s.url, gameID, playerID, playerSecret), nil)
 	if err != nil {
 		return err
 	}
@@ -126,8 +126,8 @@ func (s *Socket) connect(gameId, playerId, playerSecret string) error {
 	return nil
 }
 
-func (s *Socket) spectate(gameId string) error {
-	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/spectate", s.url, gameId), nil)
+func (s *Socket) spectate(gameID string) error {
+	wsConn, _, err := websocket.DefaultDialer.Dial(baseURL("ws", s.tls, "%s/api/games/%s/spectate", s.url, gameID), nil)
 	if err != nil {
 		return err
 	}
@@ -135,8 +135,8 @@ func (s *Socket) spectate(gameId string) error {
 	return nil
 }
 
-func (s *Socket) fetchUsername(gameId, playerId string) (string, error) {
-	resp, err := http.Get(baseURL("http", s.tls, "%s/api/games/%s/players/%s", s.url, gameId, playerId))
+func (s *Socket) fetchUsername(gameID, playerID string) (string, error) {
+	resp, err := http.Get(baseURL("http", s.tls, "%s/api/games/%s/players/%s", s.url, gameID, playerID))
 	if err != nil {
 		return "", err
 	}
@@ -144,7 +144,7 @@ func (s *Socket) fetchUsername(gameId, playerId string) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		data, err := io.ReadAll(resp.Body)
 		if err == nil && len(data) > 0 {
-			return "", fmt.Errorf("Failed to fetch username of %s: %s", playerId, string(data))
+			return "", fmt.Errorf("Failed to fetch username of %s: %s", playerID, string(data))
 		}
 		return "", fmt.Errorf("invalid response. expected: %d, got: %d", http.StatusOK, resp.StatusCode)
 	}
@@ -157,8 +157,8 @@ func (s *Socket) fetchUsername(gameId, playerId string) (string, error) {
 	return r.Username, err
 }
 
-func (s *Socket) fetchPlayers(gameId string) (map[string]string, error) {
-	resp, err := http.Get(baseURL("http", s.tls, "%s/api/games/%s/players", s.url, gameId))
+func (s *Socket) fetchPlayers(gameID string) (map[string]string, error) {
+	resp, err := http.Get(baseURL("http", s.tls, "%s/api/games/%s/players", s.url, gameID))
 	if err != nil {
 		return nil, err
 	}
@@ -181,9 +181,9 @@ type configReponse[T any] struct {
 }
 
 // FetchGameConfig fetches the game config from the server.
-func FetchGameConfig[T any](socket *Socket, gameId string) (T, error) {
+func FetchGameConfig[T any](socket *Socket, gameID string) (T, error) {
 	var config T
-	resp, err := http.Get(baseURL("http", socket.tls, "%s/api/games/%s", socket.url, gameId))
+	resp, err := http.Get(baseURL("http", socket.tls, "%s/api/games/%s", socket.url, gameID))
 	if err != nil {
 		return config, err
 	}

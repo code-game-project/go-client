@@ -25,7 +25,7 @@ type Socket struct {
 	tls            bool
 	session        Session
 	wsConn         *websocket.Conn
-	eventListeners map[EventName]map[CallbackId]EventCallback
+	eventListeners map[EventName]map[CallbackID]EventCallback
 	usernameCache  map[string]string
 
 	running   bool
@@ -40,7 +40,7 @@ func NewSocket(url string) (*Socket, error) {
 	socket := &Socket{
 		url:            url,
 		tls:            isTLS(url),
-		eventListeners: make(map[EventName]map[CallbackId]EventCallback),
+		eventListeners: make(map[EventName]map[CallbackID]EventCallback),
 		usernameCache:  make(map[string]string),
 		eventChan:      make(chan Event, 10),
 	}
@@ -59,24 +59,24 @@ func NewSocket(url string) (*Socket, error) {
 }
 
 // CreateGame creates a new game on the server and returns the id of the created game and the join secret if protected == true.
-func (s *Socket) CreateGame(public, protected bool, config any) (gameId, joinSecret string, err error) {
+func (s *Socket) CreateGame(public, protected bool, config any) (gameID, joinSecret string, err error) {
 	return s.createGame(public, protected, config)
 }
 
 // Join creates a new player in the game and connects to it.
 // Join panics if the socket is already connected to a game.
 // Leave joinSecret empty if the game is not protected.
-func (s *Socket) Join(gameId, username, joinSecret string) error {
+func (s *Socket) Join(gameID, username, joinSecret string) error {
 	if s.session.GameURL != "" {
 		panic("already connected to a game")
 	}
 
-	playerId, playerSecret, err := s.createPlayer(gameId, username, joinSecret)
+	playerID, playerSecret, err := s.createPlayer(gameID, username, joinSecret)
 	if err != nil {
 		return err
 	}
 
-	return s.Connect(gameId, playerId, playerSecret)
+	return s.Connect(gameID, playerID, playerSecret)
 }
 
 // RestoreSession tries to restore the session and use it to reconnect to the game.
@@ -89,7 +89,7 @@ func (s *Socket) RestoreSession(username string) error {
 	if err != nil {
 		return err
 	}
-	err = s.Connect(session.GameId, session.PlayerId, session.PlayerSecret)
+	err = s.Connect(session.GameID, session.PlayerID, session.PlayerSecret)
 	if err != nil {
 		session.remove()
 	}
@@ -98,25 +98,25 @@ func (s *Socket) RestoreSession(username string) error {
 
 // Connect connects to a game and player on the server.
 // Connect panics if the socket is already connected to a game.
-func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
+func (s *Socket) Connect(gameID, playerID, playerSecret string) error {
 	if s.session.GameURL != "" {
 		panic("already connected to a game")
 	}
-	err := s.connect(gameId, playerId, playerSecret)
+	err := s.connect(gameID, playerID, playerSecret)
 	if err != nil {
 		return err
 	}
 
-	s.session = newSession(s.url, "", gameId, playerId, playerSecret)
+	s.session = newSession(s.url, "", gameID, playerID, playerSecret)
 
 	s.startListenLoop()
 
-	s.usernameCache, err = s.fetchPlayers(gameId)
+	s.usernameCache, err = s.fetchPlayers(gameID)
 	if err != nil {
 		return err
 	}
 
-	s.session.Username = s.usernameCache[playerId]
+	s.session.Username = s.usernameCache[playerID]
 	err = s.session.save()
 	if err != nil {
 		printError("Failed to save session: %s", err)
@@ -127,19 +127,19 @@ func (s *Socket) Connect(gameId, playerId, playerSecret string) error {
 
 // Spectate joins the game as a spectator.
 // Spectate panics if the socket is already connected to a game.
-func (s *Socket) Spectate(gameId string) error {
+func (s *Socket) Spectate(gameID string) error {
 	if s.session.GameURL != "" {
 		panic("already connected to a game")
 	}
-	err := s.spectate(gameId)
+	err := s.spectate(gameID)
 	if err != nil {
 		return err
 	}
-	s.session = newSession(s.url, "", gameId, "", "")
+	s.session = newSession(s.url, "", gameID, "", "")
 
 	s.startListenLoop()
 
-	s.usernameCache, err = s.fetchPlayers(gameId)
+	s.usernameCache, err = s.fetchPlayers(gameID)
 	if err != nil {
 		return err
 	}
@@ -180,12 +180,12 @@ func (s *Socket) NextEvent() (Event, bool, error) {
 }
 
 // On registers a callback that is triggered when the event is received.
-func (s *Socket) On(event EventName, callback EventCallback) CallbackId {
+func (s *Socket) On(event EventName, callback EventCallback) CallbackID {
 	if s.eventListeners[event] == nil {
-		s.eventListeners[event] = make(map[CallbackId]EventCallback)
+		s.eventListeners[event] = make(map[CallbackID]EventCallback)
 	}
 
-	id := CallbackId(uuid.New())
+	id := CallbackID(uuid.New())
 
 	s.eventListeners[event][id] = callback
 
@@ -193,12 +193,12 @@ func (s *Socket) On(event EventName, callback EventCallback) CallbackId {
 }
 
 // Once registers a callback that is triggered only the first time the event is received.
-func (s *Socket) Once(event EventName, callback EventCallback) CallbackId {
+func (s *Socket) Once(event EventName, callback EventCallback) CallbackID {
 	if s.eventListeners[event] == nil {
-		s.eventListeners[event] = make(map[CallbackId]EventCallback)
+		s.eventListeners[event] = make(map[CallbackID]EventCallback)
 	}
 
-	id := CallbackId(uuid.New())
+	id := CallbackID(uuid.New())
 
 	s.eventListeners[event][id] = func(event Event) {
 		callback(event)
@@ -209,7 +209,7 @@ func (s *Socket) Once(event EventName, callback EventCallback) CallbackId {
 }
 
 // RemoveCallback deletes the callback with the specified id.
-func (s *Socket) RemoveCallback(id CallbackId) {
+func (s *Socket) RemoveCallback(id CallbackID) {
 	for _, callbacks := range s.eventListeners {
 		delete(callbacks, id)
 	}
@@ -218,7 +218,7 @@ func (s *Socket) RemoveCallback(id CallbackId) {
 // Send sends a new command to the server.
 // Send panics if the socket is not connected to a player.
 func (s *Socket) Send(name CommandName, data any) error {
-	if s.wsConn == nil || s.session.PlayerId == "" {
+	if s.wsConn == nil || s.session.PlayerID == "" {
 		panic("not connected to a player")
 	}
 
@@ -252,14 +252,14 @@ func (s *Socket) Close() error {
 }
 
 // Username returns the username associated with playerId.
-func (s *Socket) Username(playerId string) string {
-	if username, ok := s.usernameCache[playerId]; ok {
+func (s *Socket) Username(playerID string) string {
+	if username, ok := s.usernameCache[playerID]; ok {
 		return username
 	}
 
-	username, err := s.fetchUsername(s.session.GameId, playerId)
+	username, err := s.fetchUsername(s.session.GameID, playerID)
 	if err == nil {
-		s.usernameCache[playerId] = username
+		s.usernameCache[playerID] = username
 	}
 	return username
 }
@@ -317,10 +317,8 @@ func (s *Socket) receiveEvent() (Event, error) {
 
 func (s *Socket) triggerEventListeners(event Event) {
 	listeners := s.eventListeners[event.Name]
-	if listeners != nil {
-		for _, cb := range listeners {
-			cb(event)
-		}
+	for _, cb := range listeners {
+		cb(event)
 	}
 }
 
