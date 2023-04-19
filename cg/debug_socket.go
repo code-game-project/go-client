@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -36,6 +35,8 @@ type DebugSocket struct {
 	enableInfo    bool
 	enableWarning bool
 	enableError   bool
+
+	nextCallbackID CallbackID
 }
 
 func NewDebugSocket(url string) *DebugSocket {
@@ -69,7 +70,8 @@ func (s *DebugSocket) SetSeverities(enableTrace, enableInfo, enableWarning, enab
 }
 
 func (s *DebugSocket) OnMessage(callback DebugMessageCallback) CallbackID {
-	id := CallbackID(uuid.New())
+	id := s.nextCallbackID
+	s.nextCallbackID++
 	s.callbacks[id] = callback
 	return id
 }

@@ -3,11 +3,8 @@ package cg
 import (
 	"encoding/json"
 	"errors"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -20,126 +17,66 @@ var (
 
 // Socket represents the connection with a CodeGame server and handles events.
 type Socket struct {
-	info           CGInfo
-	url            string
+	gameURL        string
 	tls            bool
-	session        Session
 	wsConn         *websocket.Conn
 	eventListeners map[EventName]map[CallbackID]EventCallback
 	usernameCache  map[string]string
 
+	gameID   string
+	playerID string
+
 	running   bool
 	eventChan chan Event
 	err       error
+
+	nextCallbackID CallbackID
 }
 
-// NewSocket creates a new Socket object ready to execute further actions.
-// You can omit the protocol. NewSocket will determine the best protocol to use.
-func NewSocket(url string) (*Socket, error) {
-	url = trimURL(url)
+func Connect(gameURL, gameID, playerID, playerSecret string) (*Socket, error) {
+	gameURL = trimURL(gameURL)
 	socket := &Socket{
-		url:            url,
-		tls:            isTLS(url),
+		gameURL:        gameURL,
+		tls:            isTLS(gameURL),
 		eventListeners: make(map[EventName]map[CallbackID]EventCallback),
 		usernameCache:  make(map[string]string),
 		eventChan:      make(chan Event, 10),
+		gameID:         gameID,
+		playerID:       playerID,
 	}
-
-	info, err := socket.fetchInfo()
+	err := socket.connect(gameID, playerID, playerSecret)
 	if err != nil {
 		return nil, err
 	}
-	socket.info = info
 
-	if !isVersionCompatible(info.CGVersion) {
-		printWarning("CodeGame version mismatch. Server: v%s, client: v%s", info.CGVersion, CGVersion)
+	socket.startListenLoop()
+
+	socket.usernameCache, err = socket.fetchPlayers(gameID)
+	if err != nil {
+		return nil, err
 	}
 
 	return socket, nil
 }
 
-// CreateGame creates a new game on the server and returns the id of the created game and the join secret if protected == true.
-func (s *Socket) CreateGame(public, protected bool, config any) (gameID, joinSecret string, err error) {
-	return s.createGame(public, protected, config)
-}
-
-// Join creates a new player in the game and connects to it.
-// Join panics if the socket is already connected to a game.
-// Leave joinSecret empty if the game is not protected.
-func (s *Socket) Join(gameID, username, joinSecret string) error {
-	if s.session.GameURL != "" {
-		panic("already connected to a game")
+func Spectate(gameURL, gameID string) error {
+	gameURL = trimURL(gameURL)
+	socket := &Socket{
+		gameURL:        gameURL,
+		tls:            isTLS(gameURL),
+		eventListeners: make(map[EventName]map[CallbackID]EventCallback),
+		usernameCache:  make(map[string]string),
+		eventChan:      make(chan Event, 10),
+		gameID:         gameID,
 	}
-
-	playerID, playerSecret, err := s.createPlayer(gameID, username, joinSecret)
+	err := socket.spectate(gameID)
 	if err != nil {
 		return err
 	}
 
-	return s.Connect(gameID, playerID, playerSecret)
-}
+	socket.startListenLoop()
 
-// RestoreSession tries to restore the session and use it to reconnect to the game.
-// RestoreSession panics if the socket is already connected to a game.
-func (s *Socket) RestoreSession(username string) error {
-	if s.session.GameURL != "" {
-		panic("already connected to a game")
-	}
-	session, err := loadSession(s.url, username)
-	if err != nil {
-		return err
-	}
-	err = s.Connect(session.GameID, session.PlayerID, session.PlayerSecret)
-	if err != nil {
-		session.remove()
-	}
-	return err
-}
-
-// Connect connects to a game and player on the server.
-// Connect panics if the socket is already connected to a game.
-func (s *Socket) Connect(gameID, playerID, playerSecret string) error {
-	if s.session.GameURL != "" {
-		panic("already connected to a game")
-	}
-	err := s.connect(gameID, playerID, playerSecret)
-	if err != nil {
-		return err
-	}
-
-	s.session = newSession(s.url, "", gameID, playerID, playerSecret)
-
-	s.startListenLoop()
-
-	s.usernameCache, err = s.fetchPlayers(gameID)
-	if err != nil {
-		return err
-	}
-
-	s.session.Username = s.usernameCache[playerID]
-	err = s.session.save()
-	if err != nil {
-		printError("Failed to save session: %s", err)
-	}
-
-	return nil
-}
-
-// Spectate joins the game as a spectator.
-// Spectate panics if the socket is already connected to a game.
-func (s *Socket) Spectate(gameID string) error {
-	if s.session.GameURL != "" {
-		panic("already connected to a game")
-	}
-	err := s.spectate(gameID)
-	if err != nil {
-		return err
-	}
-	s.session = newSession(s.url, "", gameID, "", "")
-
-	s.startListenLoop()
-
-	s.usernameCache, err = s.fetchPlayers(gameID)
+	socket.usernameCache, err = socket.fetchPlayers(gameID)
 	if err != nil {
 		return err
 	}
@@ -185,7 +122,8 @@ func (s *Socket) On(event EventName, callback EventCallback) CallbackID {
 		s.eventListeners[event] = make(map[CallbackID]EventCallback)
 	}
 
-	id := CallbackID(uuid.New())
+	id := s.nextCallbackID
+	s.nextCallbackID++
 
 	s.eventListeners[event][id] = callback
 
@@ -198,7 +136,8 @@ func (s *Socket) Once(event EventName, callback EventCallback) CallbackID {
 		s.eventListeners[event] = make(map[CallbackID]EventCallback)
 	}
 
-	id := CallbackID(uuid.New())
+	id := s.nextCallbackID
+	s.nextCallbackID++
 
 	s.eventListeners[event][id] = func(event Event) {
 		callback(event)
@@ -218,8 +157,8 @@ func (s *Socket) RemoveCallback(id CallbackID) {
 // Send sends a new command to the server.
 // Send panics if the socket is not connected to a player.
 func (s *Socket) Send(name CommandName, data any) error {
-	if s.wsConn == nil || s.session.PlayerID == "" {
-		panic("not connected to a player")
+	if s.playerID == "" {
+		panic("cannot send commands as a spectator")
 	}
 
 	cmd := Command{
@@ -257,21 +196,27 @@ func (s *Socket) Username(playerID string) string {
 		return username
 	}
 
-	username, err := s.fetchUsername(s.session.GameID, playerID)
+	username, err := s.fetchUsername(s.gameID, playerID)
 	if err == nil {
 		s.usernameCache[playerID] = username
 	}
 	return username
 }
 
-// Session returns details of the current session.
-func (s *Socket) Session() Session {
-	return s.session
+func (s *Socket) GameURL() string {
+	return s.gameURL
 }
 
-// Info returns information about the connected game.
-func (s *Socket) Info() CGInfo {
-	return s.info
+func (s *Socket) GameID() string {
+	return s.gameID
+}
+
+func (s *Socket) PlayerID() string {
+	return s.playerID
+}
+
+func (s *Socket) IsSpectating() bool {
+	return s.playerID == ""
 }
 
 func (s *Socket) startListenLoop() {
@@ -320,36 +265,4 @@ func (s *Socket) triggerEventListeners(event Event) {
 	for _, cb := range listeners {
 		cb(event)
 	}
-}
-
-func isVersionCompatible(serverVersion string) bool {
-	serverParts := strings.Split(serverVersion, ".")
-	if len(serverParts) == 1 {
-		serverParts = append(serverParts, "0")
-	}
-
-	clientParts := strings.Split(CGVersion, ".")
-	if len(clientParts) == 1 {
-		clientParts = append(clientParts, "0")
-	}
-
-	if serverParts[0] != clientParts[0] {
-		return false
-	}
-
-	if clientParts[0] == "0" {
-		return serverParts[1] == clientParts[1]
-	}
-
-	serverMinor, err := strconv.Atoi(serverParts[1])
-	if err != nil {
-		return false
-	}
-
-	clientMinor, err := strconv.Atoi(clientParts[1])
-	if err != nil {
-		return false
-	}
-
-	return clientMinor <= serverMinor
 }

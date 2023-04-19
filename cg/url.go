@@ -3,19 +3,20 @@ package cg
 import (
 	"crypto/tls"
 	"fmt"
-	"net/url"
+	"net"
+	neturl "net/url"
 	"strings"
 	"time"
 )
 
-// trimURL removes the protocol version and trailing slashes.
+// trimURL removes the protocol component and trailing slashes.
 func trimURL(url string) string {
-	url = strings.TrimSuffix(url, "/")
-	parts := strings.Split(url, "://")
-	if len(parts) < 2 {
+	u, err := neturl.Parse(url)
+	if err != nil {
 		return url
 	}
-	return strings.Join(parts[1:], "://")
+	u.Scheme = ""
+	return strings.TrimSuffix(u.String(), "/")
 }
 
 // baseURL prepends `protocol + "://"` or `protocol + "s://"` to the url depending on TLS support.
@@ -29,17 +30,17 @@ func baseURL(protocol string, tls bool, trimmedURL string, a ...any) string {
 }
 
 // isTLS verifies the TLS certificate of a trimmed URL.
-func isTLS(trimmedURL string) bool {
-	url, err := url.Parse("https://" + trimmedURL)
+func isTLS(trimmedURL string) (isTLS bool) {
+	url, err := neturl.Parse("https://" + trimmedURL)
 	if err != nil {
 		return false
 	}
 	host := url.Host
 	if url.Port() == "" {
-		host += ":443"
+		host = host + ":443"
 	}
 
-	conn, err := tls.Dial("tcp", host, &tls.Config{})
+	conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 5 * time.Second}, "tcp", host, &tls.Config{})
 	if err != nil {
 		return false
 	}
@@ -47,15 +48,9 @@ func isTLS(trimmedURL string) bool {
 
 	err = conn.VerifyHostname(url.Hostname())
 	if err != nil {
-		fmt.Println(err)
 		return false
 	}
 
 	expiry := conn.ConnectionState().PeerCertificates[0].NotAfter
-	if time.Now().After(expiry) {
-		fmt.Println(err)
-		return false
-	}
-
-	return true
+	return !time.Now().After(expiry)
 }

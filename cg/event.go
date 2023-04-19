@@ -2,12 +2,10 @@ package cg
 
 import (
 	"encoding/json"
-
-	"github.com/google/uuid"
 )
 
 type (
-	CallbackID    uuid.UUID
+	CallbackID    int64
 	EventCallback func(event Event)
 )
 

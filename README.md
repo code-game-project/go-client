@@ -14,23 +14,13 @@ go get github.com/code-game-project/go-client/cg
 ## Usage
 
 ```go
-// Create a new game socket.
-socket, err := cg.NewSocket("games.code-game.org/example")
+socket, err := cg.Connect(gameURL, gameID, playerID, playerSecret)
+if err != nil {
+  log.Fatalf("error: %s", err)
+}
 
-// Create a new private and unprotected game on the server.
-socket.CreateGame(false, false, nil)
-
-// Join a game.
-socket.Join(gameId, "username", "")
-
-// Spectate a game.
-socket.Spectate(gameId)
-
-// Connect with an existing session.
-socket.RestoreSession(username)
-
-// Register an event listener for the `my_event` event.
-socket.On(MyEventEvent, func(event cg.Event) {
+// Register an event listener for the `test` event.
+socket.On(TestEvent, func(event cg.Event) {
 	// TODO: do something with event
 })
 
